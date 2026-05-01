@@ -2,6 +2,7 @@
 
 :root {
   --background: #050816;
+  --background-image: url("/images/background.png");
   --foreground: #f8fafc;
   --window-background: #07133a;
   --window-border: #ffffff;
@@ -26,7 +27,7 @@ html {
 body {
   min-height: 100vh;
   background-color: var(--background);
-  background-image: url("/images/background.png");
+  background-image: var(--background-image);
   background-attachment: fixed;
   background-position: center;
   background-repeat: no-repeat;
@@ -34,6 +35,14 @@ body {
   color: var(--foreground);
   font-family: var(--font-dot-gothic-16), var(--font-geist-mono), "Courier New",
     monospace;
+}
+
+body.theme-background-default {
+  --background-image: url("/images/background.png");
+}
+
+body.theme-background-alt {
+  --background-image: url("/images/background2.png");
 }
 
 a {
