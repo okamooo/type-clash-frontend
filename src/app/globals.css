@@ -2,7 +2,7 @@
 
 :root {
   --background: #050816;
-  --background-image: url("/images/background.png");
+  --background-image: url("/images/0.png");
   --foreground: #f8fafc;
   --window-background: #07133a;
   --window-border: #ffffff;
@@ -37,12 +37,14 @@ body {
     monospace;
 }
 
+body[data-background-id="0"],
 body.theme-background-default {
-  --background-image: url("/images/background.png");
+  --background-image: url("/images/0.png");
 }
 
+body[data-background-id="1"],
 body.theme-background-alt {
-  --background-image: url("/images/background2.png");
+  --background-image: url("/images/1.png");
 }
 
 a {
