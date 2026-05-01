@@ -11,7 +11,7 @@ export default function TopPage() {
           リアルタイム対戦型タイピングアプリ
         </p>
         <div className="mt-10">
-          <MenuItem selected>ログイン</MenuItem>
+          <MenuItem selected>スタート</MenuItem>
         </div>
       </section>
     </main>
