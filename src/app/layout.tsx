@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { DotGothic16, Geist, Geist_Mono } from "next/font/google";
+import { DotGothic16, Geist, Geist_Mono as GeistMono } from "next/font/google";
+import CommonHeader from "@/components/CommonHeader";
+import { CurrentUserProvider } from "@/contexts/CurrentUserContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -7,7 +9,7 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
+const geistMono = GeistMono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
@@ -34,9 +36,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${dotGothic16.variable} h-full antialiased`}
     >
       <body data-background-id="0">
-        <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-6 sm:px-8 sm:py-10">
-          {children}
-        </div>
+        <CurrentUserProvider>
+          <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-6 sm:px-8 sm:py-10">
+            <CommonHeader />
+            {children}
+          </div>
+        </CurrentUserProvider>
       </body>
     </html>
   );
