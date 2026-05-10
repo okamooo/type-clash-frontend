@@ -15,17 +15,9 @@ type Ranking = {
 
 type RankingListResponse = {
   totalUsers: number;
+  averageBestScore: number;
   rankings: Ranking[];
 };
-
-// 平均スコアを計算する
-function calcAverageScore(rankingList: Ranking[]): string {
-  if (rankingList.length === 0) return "0";
-
-  const totalScore = rankingList.reduce((sum, r) => sum + r.score, 0);
-
-  return (totalScore / rankingList.length).toFixed(2);
-}
 
 // 順位に応じてメダルまたは順位テキストを返す
 function renderRank(rank: number) {
@@ -59,6 +51,7 @@ function renderRank(rank: number) {
 export default function RankingsPage() {
   const [rankings, setRankings] = useState<Ranking[]>([]);
   const [totalUsers, setTotalUsers] = useState<number>(0);
+  const [averageBestScore, setAverageBestScore] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +75,7 @@ export default function RankingsPage() {
         const data: RankingListResponse = await res.json();
         setRankings(data.rankings);
         setTotalUsers(data.totalUsers);
+        setAverageBestScore(data.averageBestScore);
       } catch (e) {
         if (e instanceof DOMException && e.name === "AbortError") {
           setError("ランキングの取得がタイムアウトしました");
@@ -151,10 +145,10 @@ export default function RankingsPage() {
                 height={30}
               />
 
-              <span className="text-sm text-slate-300">平均スコア</span>
+              <span className="text-sm text-slate-300">ベスト平均</span>
 
               <span className="ml-auto text-[1.25rem] font-bold tracking-[0.1em] text-yellow-200">
-                {calcAverageScore(rankings)}
+                {averageBestScore.toFixed(2)}
               </span>
 
               <span className="mt-1 text-sm text-slate-400">pt</span>
