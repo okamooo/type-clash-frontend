@@ -31,7 +31,7 @@ body {
   background-attachment: fixed;
   background-position: center;
   background-repeat: no-repeat;
-  background-size: cover;
+  background-size: 1920px auto;
   color: var(--foreground);
   font-family: var(--font-dot-gothic-16), var(--font-geist-mono), "Courier New",
     monospace;
