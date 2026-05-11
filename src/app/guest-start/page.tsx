@@ -1,4 +1,5 @@
-import BackButton from "@/components/BackButton";
+import Link from "next/link";
+
 import TypewriterText from "@/components/TypewriterText";
 import WindowPanel from "@/components/WindowPanel";
 
@@ -9,7 +10,12 @@ export default function BlockedStartPage() {
         <p className="w-full text-left text-base sm:text-xl">
           <TypewriterText text="しかし まわりこまれてしまった" />
         </p>
-        <BackButton />
+        <Link
+          href="/"
+          className="mt-8 self-start text-base transition-colors hover:text-yellow-200 sm:text-xl"
+        >
+          ▶ トップページへ
+        </Link>
       </WindowPanel>
     </main>
   );
