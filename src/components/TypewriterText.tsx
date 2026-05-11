@@ -6,18 +6,23 @@ type TypewriterTextProps = Readonly<{
   text: string;
   speed?: number;
   pauses?: Readonly<Record<number, number>>;
+  onComplete?: () => void;
 }>;
 
 export default function TypewriterText({
   text,
   speed = 70,
   pauses = {},
+  onComplete,
 }: TypewriterTextProps) {
-  const [visibleLength, setVisibleLength] = useState(0);
   const characters = Array.from(text);
+  const [visibleLength, setVisibleLength] = useState(() =>
+    characters.length > 0 ? 1 : 0,
+  );
 
   useEffect(() => {
     if (visibleLength >= characters.length) {
+      onComplete?.();
       return;
     }
 
@@ -28,7 +33,7 @@ export default function TypewriterText({
     }, pauses[visibleLength] ?? speed);
 
     return () => globalThis.clearTimeout(timerId);
-  }, [characters.length, pauses, speed, visibleLength]);
+  }, [characters.length, onComplete, pauses, speed, visibleLength]);
 
   return <>{characters.slice(0, visibleLength).join("")}</>;
 }
