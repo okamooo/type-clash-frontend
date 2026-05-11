@@ -194,7 +194,7 @@ export default function HistoryPage() {
 
             {/* 履歴一覧 */}
             {!loading && !error && histories.length > 0 && (
-              <ul className="flex flex-col overflow-y-auto max-h-[280px]">
+              <ul className="flex flex-col overflow-y-auto max-h-[275px]">
                 {histories.map((history) => {
                   const { date, time } = formatDate(history.finishedAt);
 
