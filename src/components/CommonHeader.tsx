@@ -22,6 +22,8 @@ const headerVisiblePaths = new Set([
   "/account-settings/email",
   "/account-settings/password",
   "/account-settings/delete",
+  "/result/BattleResult",
+  "/result/SingleResult",
 ]);
 
 export default function CommonHeader() {
