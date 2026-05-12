@@ -17,6 +17,7 @@ export default function SingleModePage() {
 
   // --- ステート管理 (主にUI表示用) ---
   const [words, setWords] = useState<Word[]>([]);
+  const [wordPool, setWordPool] = useState<Word[]>([]); // まだ出題していない単語の山札
   const [currentWord, setCurrentWord] = useState<Word | null>(null);
   const [userInput, setUserInput] = useState("");
   const [isStarted, setIsStarted] = useState(false);
@@ -40,7 +41,7 @@ export default function SingleModePage() {
   const normalizeInput = (value: string) => {
     return value
       .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (char) =>
-        String.fromCharCode(char.charCodeAt(0) - 0xfee0)
+        String.fromCharCode(char.charCodeAt(0) - 0xfee0),
       )
       .replace(/[ー]/g, "-")
       .replace(/[^a-zA-Z0-9-]/g, "");
@@ -65,18 +66,31 @@ export default function SingleModePage() {
 
   // --- 2. ワードのランダム選択 ---
   const setNextWord = useCallback(() => {
-    if (words.length > 0) {
-      const randomIndex = Math.floor(Math.random() * words.length);
-      setCurrentWord(words[randomIndex]);
+    if (words.length === 0) return;
+
+    setWordPool((prevPool) => {
+      let currentPool = [...prevPool];
+
+      // もし空になったら補充してシャッフル
+      if (currentPool.length === 0) {
+        currentPool = [...words].sort(() => Math.random() - 0.5);
+      }
+
+      // 単語リストの最後から1つ取り出す
+      const nextWord = currentPool.pop()!;
+
+      setCurrentWord(nextWord);
       setUserInput("");
       userInputRef.current = ""; // 同期
-    }
+
+      return currentPool;
+    });
   }, [words]);
 
   // --- 3. ゲーム開始 ---
   const start = useCallback(() => {
     if (isLoading || words.length === 0) return;
-    
+
     // 値のリセット
     setIsStarted(true);
     setIsFinished(false);
@@ -84,15 +98,21 @@ export default function SingleModePage() {
     setCorrectCount(0);
     setTotalInput(0);
     setDisplayScore(0);
-    
+    setWordPool([]); // 山札をリセット（新しいゲームごとにシャッフルされるように）
+
     correctCountRef.current = 0;
     totalInputRef.current = 0;
     userInputRef.current = "";
-    
-    setNextWord();
-    
+
+    // 初回の単語セット
+    // setWordPoolの非同期処理を待たずにwordsから直接初回分をセットする工夫
+    const initialPool = [...words].sort(() => Math.random() - 0.5);
+    const firstWord = initialPool.pop()!;
+    setCurrentWord(firstWord);
+    setWordPool(initialPool);
+
     setTimeout(() => inputRef.current?.focus(), 0);
-  }, [setNextWord, isLoading, words.length]);
+  }, [isLoading, words]);
 
   // エンターキーで開始
   useEffect(() => {
@@ -134,11 +154,11 @@ export default function SingleModePage() {
       // 正解
       userInputRef.current = nextInput;
       setUserInput(nextInput);
-      
+
       correctCountRef.current += 1;
       const currentCorrect = correctCountRef.current;
       setCorrectCount(currentCorrect);
-      
+
       const newScore = calculateCurrentScore(currentCorrect, currentTotal);
       setDisplayScore(newScore);
 
@@ -148,7 +168,10 @@ export default function SingleModePage() {
       }
     } else {
       // ミス
-      const newScore = calculateCurrentScore(correctCountRef.current, currentTotal);
+      const newScore = calculateCurrentScore(
+        correctCountRef.current,
+        currentTotal,
+      );
       setDisplayScore(newScore);
     }
   };
@@ -182,8 +205,13 @@ export default function SingleModePage() {
           console.error("スコアの保存に失敗しました:", error);
         }
 
-        const accuracy = finalTotal > 0 ? ((finalCorrect / finalTotal) * 100).toFixed(1) : "0.0";
-        router.push(`/result/SingleResult?score=${finalScore}&accuracy=${accuracy}&correct=${finalCorrect}&total=${finalTotal}`);
+        const accuracy =
+          finalTotal > 0
+            ? ((finalCorrect / finalTotal) * 100).toFixed(1)
+            : "0.0";
+        router.push(
+          `/result/SingleResult?score=${finalScore}&accuracy=${accuracy}&correct=${finalCorrect}&total=${finalTotal}`,
+        );
       };
       saveResult();
     }
@@ -225,7 +253,9 @@ export default function SingleModePage() {
         <div className="flex w-full flex-col items-center">
           <div className="mb-8 flex w-full items-center justify-between">
             <BackButton />
-            <div className="text-2xl font-bold tracking-tighter">SINGLE MODE</div>
+            <div className="text-2xl font-bold tracking-tighter">
+              SINGLE MODE
+            </div>
             <div className="w-12"></div>
           </div>
 
@@ -238,7 +268,6 @@ export default function SingleModePage() {
                 className="group relative flex items-center gap-2 text-4xl font-bold italic transition-all hover:scale-110"
               >
                 <span className="text-white">PRESS ENTER TO START</span>
-                <span className="animate-ping absolute -right-4 -top-1 inline-flex h-3 w-3 rounded-full bg-blue-400 opacity-75"></span>
               </button>
             </div>
           ) : (
@@ -246,7 +275,9 @@ export default function SingleModePage() {
               <div className="mb-10 grid w-full grid-cols-3 gap-4 border-b pb-4">
                 <div className="flex flex-col">
                   <span className="text-xs text-slate-400">TIME</span>
-                  <span className={`text-2xl font-mono ${timeLeft <= 10 ? "text-red-500 animate-pulse" : ""}`}>
+                  <span
+                    className={`text-2xl font-mono ${timeLeft <= 10 ? "text-red-500 animate-pulse" : ""}`}
+                  >
                     {timeLeft}s
                   </span>
                 </div>
@@ -257,7 +288,10 @@ export default function SingleModePage() {
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-slate-400">ACCURACY</span>
                   <span className="text-2xl font-mono">
-                    {totalInput > 0 ? ((correctCount / totalInput) * 100).toFixed(1) : "0.0"}%
+                    {totalInput > 0
+                      ? ((correctCount / totalInput) * 100).toFixed(1)
+                      : "0.0"}
+                    %
                   </span>
                 </div>
               </div>
@@ -265,7 +299,9 @@ export default function SingleModePage() {
               <div className="relative flex flex-col items-center py-10 w-full min-h-[240px]">
                 {currentWord && (
                   <>
-                    <div className="text-xl text-slate-400">{currentWord.kanaReading}</div>
+                    <div className="text-xl text-slate-400">
+                      {currentWord.kanaReading}
+                    </div>
                     <div className="mt-2 text-5xl font-bold tracking-widest text-white">
                       {currentWord.displayText}
                     </div>
