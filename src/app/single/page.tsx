@@ -237,7 +237,7 @@ export default function SingleModePage() {
                 onClick={start}
                 className="group relative flex items-center gap-2 text-4xl font-bold italic transition-all hover:scale-110"
               >
-                <span className="text-slate-800">PRESS ENTER TO START</span>
+                <span className="text-white">PRESS ENTER TO START</span>
                 <span className="animate-ping absolute -right-4 -top-1 inline-flex h-3 w-3 rounded-full bg-blue-400 opacity-75"></span>
               </button>
             </div>
@@ -266,7 +266,7 @@ export default function SingleModePage() {
                 {currentWord && (
                   <>
                     <div className="text-xl text-slate-400">{currentWord.kanaReading}</div>
-                    <div className="mt-2 text-5xl font-bold tracking-widest text-slate-800">
+                    <div className="mt-2 text-5xl font-bold tracking-widest text-white">
                       {currentWord.displayText}
                     </div>
                     <div className="mt-8 text-3xl font-mono tracking-wider">
