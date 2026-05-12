@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import LogoutButton from "@/components/LogoutButton";
 import MenuItem from "@/components/MenuItem";
 import WindowPanel from "@/components/WindowPanel";
 
@@ -32,7 +33,7 @@ const MENU = [
   {
     label: "💀",
     href: "/skull",
-  },
+  }
 ] as const;
 
 export default function HomePage() {
@@ -67,6 +68,9 @@ export default function HomePage() {
             );
           })}
         </nav>
+        <div className="mt-5 w-full max-w-md">
+          <LogoutButton />
+        </div>
       </WindowPanel>
     </main>
   );

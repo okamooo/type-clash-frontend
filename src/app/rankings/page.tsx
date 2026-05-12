@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import WindowPanel from "@/components/WindowPanel";
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
 type Ranking = {
   userId: number;
@@ -61,8 +62,8 @@ export default function RankingsPage() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-        const res = await fetch(
-          "http://localhost:8080/api/single-results/rankings",
+        const res = await fetchWithAuth(
+          "/api/single-results/rankings",
           { signal: controller.signal }
         );
 
