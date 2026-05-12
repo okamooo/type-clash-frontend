@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import BackButton from "@/components/BackButton";
@@ -91,17 +91,21 @@ function LoginForm() {
             noValidate
             className="mt-8 flex w-full max-w-sm flex-col gap-4"
           >
-            {isExpired && (
-              <p role="alert" className="text-base text-yellow-300">
-                セッションの有効期限が切れました。
-              </p>
-            )}
+            {/* セッション期限切れ */}
+            <p
+              role={isExpired ? "alert" : undefined}
+              className={`min-h-[25px] -mt-6 text-left text-base ${isExpired ? "text-yellow-300" : "text-transparent"}`}
+            >
+              {isExpired ? "セッションの有効期限が切れました。" : "\u00A0"}
+            </p>
 
-            {errors.general && (
-              <p role="alert" className="text-base text-red-300">
-                {errors.general}
-              </p>
-            )}
+            {/* 通信エラー */}
+            <p
+              role={errors.general ? "alert" : undefined}
+              className={`min-h-[25px] -mt-6 text-left text-base ${errors.general ? "text-red-400" : "text-transparent"}`}
+            >
+              {errors.general ?? "\u00A0"}
+            </p>
 
             {/* メールアドレス */}
             <div className="flex flex-col gap-1">
