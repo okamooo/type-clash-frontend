@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
-export default function LogoutButton() {
+type LogoutButtonProps = Readonly<{
+  className?: string;
+}>;
+
+export default function LogoutButton({ className }: LogoutButtonProps) {
   const router = useRouter();
 
   async function handleLogout() {
@@ -17,8 +21,17 @@ export default function LogoutButton() {
   }
 
   return (
-    <button onClick={handleLogout} className="group inline-flex items-center justify-center gap-3 text-2xl transition-colors hover:text-yellow-200 sm:text-3xl">
-      <span className="w-6 shrink-0 transition-transform group-hover:translate-x-1" aria-hidden="true">
+    <button
+      onClick={handleLogout}
+      className={
+        className ??
+        "group inline-flex items-center justify-center gap-3 text-2xl transition-colors hover:text-yellow-200 sm:text-3xl"
+      }
+    >
+      <span
+        className="w-6 shrink-0 transition-transform group-hover:translate-x-1"
+        aria-hidden="true"
+      >
         ▶
       </span>
       <span>ログアウト</span>
