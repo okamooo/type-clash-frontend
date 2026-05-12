@@ -100,7 +100,7 @@ export default function RankingsPage() {
           <div className="flex items-center justify-center gap-3">
             <Image
               className="mt-2"
-              src="/images/ranking-decoration-left.png"
+              src="/images/icon-decoration-left.png"
               alt=""
               width={50}
               height={50}
@@ -112,7 +112,7 @@ export default function RankingsPage() {
 
             <Image
               className="mt-2"
-              src="/images/ranking-decoration-right.png"
+              src="/images/icon-decoration-right.png"
               alt=""
               width={50}
               height={50}
@@ -141,7 +141,7 @@ export default function RankingsPage() {
             <div className="flex w-[300px] items-center gap-2 border border-white/30 px-3 py-1">
               <Image
                 src="/images/icon-average-score.png"
-                alt="平均スコア"
+                alt="ベスト平均"
                 width={30}
                 height={30}
               />
