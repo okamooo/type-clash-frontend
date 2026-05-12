@@ -17,7 +17,7 @@ export default function SingleModePage() {
 
   // --- ステート管理 (主にUI表示用) ---
   const [words, setWords] = useState<Word[]>([]);
-  const [wordPool, setWordPool] = useState<Word[]>([]); // まだ出題していない単語の山札
+  const [, setWordPool] = useState<Word[]>([]); // まだ出題していない単語の山札
   const [currentWord, setCurrentWord] = useState<Word | null>(null);
   const [userInput, setUserInput] = useState("");
   const [isStarted, setIsStarted] = useState(false);
