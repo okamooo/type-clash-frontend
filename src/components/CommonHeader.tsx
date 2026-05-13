@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import LogoutButton from "@/components/LogoutButton";
 import SlimeButton from "@/components/SlimeButton";
 import UserAvatar from "@/components/UserAvatar";
 import WindowPanel from "@/components/WindowPanel";
@@ -28,7 +29,6 @@ const headerVisiblePaths = new Set([
 
 export default function CommonHeader() {
   const pathname = usePathname();
-  const router = useRouter();
   const { currentUser, updateCurrentUser } = useCurrentUser();
   const headerRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -90,12 +90,6 @@ export default function CommonHeader() {
     updateCurrentUser({ backgroundImage: backgroundId });
   };
 
-  const handleLogout = () => {
-    // API接続時は POST /api/auth/logout 後に currentUser もクリアする。
-    setIsOpen(false);
-    router.push("/");
-  };
-
   return (
     <header className="relative z-20 mb-1 flex min-h-16 justify-end sm:mb-2">
       <div ref={headerRef} className="relative flex flex-col items-end">
@@ -148,13 +142,7 @@ export default function CommonHeader() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="self-start whitespace-nowrap transition-colors hover:text-yellow-200"
-                onClick={handleLogout}
-              >
-                ▶ ログアウト
-              </button>
+              <LogoutButton className="group inline-flex self-start whitespace-nowrap transition-colors hover:text-yellow-200" />
             </div>
           </WindowPanel>
         ) : null}
