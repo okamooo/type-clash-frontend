@@ -68,119 +68,122 @@ function LoginForm() {
 
       router.push("/home");
     } catch {
-      setErrors({ general: "通信エラーが発生しました。再度お試しください" });
+      setErrors({ general: "通信エラーが発生しました" });
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center">
-      <WindowPanel>
-        <p className="text-xs tracking-[0.4em] text-slate-500 sm:text-sm">
-          ══ TYPE★CLASH ══
-        </p>
+    <main className="flex flex-1 items-center justify-center overflow-auto">
+      <div className="[&>section]:min-h-[500px] [&>section]:min-w-[500px]">
+        <WindowPanel>
+          <h1 className="transform-[perspective(320px)_rotateX(12deg)_skewX(-8deg)_scaleY(1.08)] text-4xl font-bold tracking-wide text-white drop-shadow-[4px_4px_0_#64748b]">
+            Type<span className="text-yellow-300">★</span>Clash
+          </h1>
 
-        <h1 className="mt-3 transform-[perspective(320px)_rotateX(12deg)_skewX(-8deg)_scaleY(1.08)] text-3xl font-bold drop-shadow-[4px_4px_0_#64748b] sm:text-5xl">
-          ログイン
-        </h1>
-
-        <p className="mt-3 animate-pulse text-xs tracking-[0.3em] text-slate-500 sm:text-sm">
-          PLAYER AUTHENTICATION
-        </p>
-
-        <form
-          onSubmit={handleSubmit}
-          noValidate
-          className="mt-8 flex w-full max-w-sm flex-col gap-6"
-        >
-          {isExpired && (
-            <p
-              role="alert"
-              className="border border-yellow-400 bg-yellow-900/30 px-4 py-2 text-sm text-yellow-300 sm:text-base"
-            >
-              ⚠ セッションの有効期限が切れました。再度ログインしてください。
-            </p>
-          )}
-
-          {errors.general && (
-            <p
-              role="alert"
-              className="border border-red-400 bg-red-900/30 px-4 py-2 text-sm text-red-300 sm:text-base"
-            >
-              ✕ {errors.general}
-            </p>
-          )}
-
-          <div className="flex flex-col gap-2 text-left">
-            <label
-              htmlFor="email"
-              className="text-xs tracking-[0.25em] text-slate-400 sm:text-sm"
-            >
-              ▸ MAIL ADDRESS
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              placeholder="user@example.com"
-              className="border-2 border-white bg-[#050816] px-3 py-2 text-base text-white outline-none placeholder:text-slate-700 focus:border-yellow-200 focus:shadow-[0_0_10px_rgba(253,224,71,0.25)] sm:text-lg"
-            />
-            {errors.email && (
-              <p role="alert" className="text-xs text-red-300 sm:text-sm">
-                ✕ {errors.email}
-              </p>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2 text-left">
-            <label
-              htmlFor="password"
-              className="text-xs tracking-[0.25em] text-slate-400 sm:text-sm"
-            >
-              ▸ PASSWORD
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              className="border-2 border-white bg-[#050816] px-3 py-2 text-base text-white outline-none focus:border-yellow-200 focus:shadow-[0_0_10px_rgba(253,224,71,0.25)] sm:text-lg"
-            />
-            {errors.password && (
-              <p role="alert" className="text-xs text-red-300 sm:text-sm">
-                ✕ {errors.password}
-              </p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="mt-2 border-2 border-white py-3 text-base font-bold transition-all hover:border-yellow-200 hover:text-yellow-200 hover:shadow-[0_0_14px_rgba(253,224,71,0.3)] disabled:cursor-not-allowed disabled:opacity-50 sm:text-xl"
-          >
-            {isSubmitting ? "[ LOADING... ]" : "▶ ログイン"}
-          </button>
-        </form>
-
-        <div className="mt-8 w-full max-w-sm border-t border-slate-800 pt-4 text-center">
-          <p className="text-xs tracking-widest text-slate-700">
-            ── TYPE★CLASH v1.0.0 ──
+          <p className="mt-2 whitespace-nowrap text-base tracking-widest text-slate-300">
+            リアルタイム対戦型タイピングアプリ
           </p>
-        </div>
 
-        <BackButton />
-      </WindowPanel>
+          <form
+            onSubmit={handleSubmit}
+            noValidate
+            className="mt-8 flex w-full max-w-sm flex-col gap-4"
+          >
+            {/* セッション期限切れ */}
+            <p
+              role={isExpired ? "alert" : undefined}
+              className={`min-h-[25px] -mt-6 text-left text-base ${isExpired ? "text-yellow-300" : "text-transparent"}`}
+            >
+              {isExpired ? "セッションの有効期限が切れました。" : "\u00A0"}
+            </p>
+
+            {/* 通信エラー */}
+            <p
+              role={errors.general ? "alert" : undefined}
+              className={`min-h-[25px] -mt-6 text-left text-base ${errors.general ? "text-red-400" : "text-transparent"}`}
+            >
+              {errors.general ?? "\u00A0"}
+            </p>
+
+            {/* メールアドレス */}
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="email"
+                role={errors.email ? "alert" : undefined}
+                className={`min-h-[20px] text-left text-sm ${errors.email ? "text-red-300" : "text-slate-200"}`}
+              >
+                {errors.email ?? "メールアドレス"}
+              </label>
+
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                placeholder="*****@outlook.jp"
+                className="border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
+              />
+            </div>
+
+            {/* パスワード */}
+            <div className="flex flex-col gap-1">
+              <label
+                htmlFor="password"
+                role={errors.password ? "alert" : undefined}
+                className={`min-h-[20px] text-left text-sm ${errors.password ? "text-red-300" : "text-slate-200"}`}
+              >
+                {errors.password ?? "パスワード"}
+              </label>
+
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                className="border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
+              />
+            </div>
+
+            <p className="-mt-1.5 text-left text-sm">
+              <a href="/forgot-password">
+                <span className="text-slate-300 underline-offset-2 transition-colors hover:text-sky-400 hover:underline">
+                  パスワードを忘れた方はこちら
+                </span>
+              </a>
+            </p>
+
+            {/* ログインボタン */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="mt-1 border border-slate-400 bg-[#0d1b3e]/60 py-2 text-lg font-bold tracking-[0.03em] text-white hover:border-yellow-200 hover:text-yellow-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSubmitting ? "読み込み中..." : "ログイン"}
+            </button>
+
+            <p className="mt-3 text-center text-[1.15rem]">
+              <a href="/register">
+                <span className="text-blue-300 underline-offset-2 transition-colors hover:text-sky-400 hover:underline">
+                  新規登録はこちら
+                </span>
+              </a>
+            </p>
+          </form>
+
+          <BackButton />
+        </WindowPanel>
+      </div>
     </main>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense>
+    <Suspense fallback={null}>
       <LoginForm />
     </Suspense>
   );
