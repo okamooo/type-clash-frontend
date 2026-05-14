@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import Link from "next/link";
 import WindowPanel from "@/components/WindowPanel";
+import { useCurrentUser } from "@/contexts/CurrentUserContext";
 
 type FormErrors = {
   email?: string;
@@ -34,6 +35,7 @@ function validate(email: string, password: string): FormErrors {
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { updateCurrentUser } = useCurrentUser();
   const isExpired = searchParams.get("reason") === "expired";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -62,12 +64,25 @@ function LoginForm() {
 
       if (!res.ok) {
         const data: { message?: string } = await res.json().catch(() => ({}));
-        setErrors({ general: data.message ?? "メールアドレスまたはパスワードが正しくありません" });
+        setErrors({
+          general:
+            data.message ?? "メールアドレスまたはパスワードが正しくありません",
+        });
         return;
       }
 
-      const data: { id: number; name: string } = await res.json().catch(() => ({}));
+      const data: { id: number; name: string } = await res.json();
+
+      // localStorage に ID と名前を保存
       localStorage.setItem("userId", String(data.id));
+      localStorage.setItem("userName", data.name);
+
+      // コンテキストを更新
+      updateCurrentUser({
+        id: data.id,
+        name: data.name,
+      });
+
       router.push("/home");
     } catch {
       setErrors({ general: "通信エラーが発生しました" });

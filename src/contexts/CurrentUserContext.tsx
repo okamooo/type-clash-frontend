@@ -23,7 +23,7 @@ type CurrentUserContextValue = Readonly<{
 }>;
 
 const mockCurrentUser: CurrentUser = {
-  id: 1,
+  id: 0, //ユーザーIDが被らないよう0に変更
   name: "Guest",
   email: "guest@example.com",
   iconImage: null,
