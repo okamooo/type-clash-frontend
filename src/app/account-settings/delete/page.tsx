@@ -7,14 +7,30 @@ import MessagePanel from "@/components/MessagePanel";
 import TypewriterText from "@/components/TypewriterText";
 import WindowPanel from "@/components/WindowPanel";
 
-type DeleteStep = "first" | "final" | "done";
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
+
+type DeleteStep = "first" | "final" | "done" | "error";
 type DeleteCommand = Readonly<{
   label: string;
   action: () => Promise<void> | void;
 }>;
 
-async function deleteAccount() {
-  console.log("TODO: DELETE /api/users/:userId");
+async function deleteAccount(): Promise<void> {
+  const userId = localStorage.getItem("userId");
+  if (!userId) {
+    throw new Error("ユーザー情報が取得できませんでした");
+  }
+  const response = await fetchWithAuth(`/api/users/${userId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    const message = data.message
+      ? data.message.replace(/\s*ID:\s*\d+/g, "")
+      : `削除に失敗しました（${response.status}）`;
+    throw new Error(message);
+  }
 }
 
 const doneMessagePrefix = "ぼうけんのしょは\nきえてしまいました\n\n";
@@ -23,6 +39,7 @@ const messageByStep = {
   first: "アカウントを けしますか？\n\nこのそうさは\nもとに もどせません。",
   final: "……\n\nほんとうに けしますか？",
   done: `${doneMessagePrefix}(^_−)☆`,
+  error: "",
 } as const;
 
 const pausesByStep: Readonly<Partial<Record<DeleteStep, Record<number, number>>>> = {
@@ -39,6 +56,9 @@ export default function DeleteAccountPage() {
   const [step, setStep] = useState<DeleteStep>("first");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const currentMessage = step === "error" ? errorMessage : messageByStep[step];
 
   const commands = useMemo<DeleteCommand[]>(() => {
     if (step === "first") {
@@ -61,10 +81,33 @@ export default function DeleteAccountPage() {
           label: "はい",
           action: async () => {
             setIsDeleting(true);
-            await deleteAccount();
+            try {
+              await deleteAccount();
+              setSelectedIndex(0);
+              setStep("done");
+            } catch (error) {
+              const message =
+                error instanceof Error && error.message !== "Failed to fetch"
+                  ? error.message
+                  : "通信エラーが はっせいしました";
+              setErrorMessage(`さくじょに\nしっぱいしました\n\n${message}`);
+              setSelectedIndex(0);
+              setStep("error");
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ];
+    }
+
+    if (step === "error") {
+      return [
+        {
+          label: "もどる",
+          action: () => {
             setSelectedIndex(0);
-            setStep("done");
-            setIsDeleting(false);
+            setStep("first");
           },
         },
       ];
@@ -119,7 +162,7 @@ export default function DeleteAccountPage() {
           <MessagePanel className="h-72">
             <TypewriterText
               key={step}
-              text={messageByStep[step]}
+              text={currentMessage}
               speed={45}
               pauses={pausesByStep[step]}
             />
@@ -146,9 +189,8 @@ export default function DeleteAccountPage() {
                     key={command.label}
                     type="button"
                     disabled={isDeleting}
-                    className={`inline-flex self-start text-left transition-colors disabled:cursor-wait disabled:opacity-60 ${
-                      isSelected ? "text-yellow-200" : "text-white"
-                    }`}
+                    className={`inline-flex self-start text-left transition-colors disabled:cursor-wait disabled:opacity-60 ${isSelected ? "text-yellow-200" : "text-white"
+                      }`}
                     onMouseEnter={() => setSelectedIndex(index)}
                     onClick={() => {
                       runCommand(command).catch((error: unknown) => {
