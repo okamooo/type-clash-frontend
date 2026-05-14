@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import BackButton from "@/components/BackButton";
+import Link from "next/link";
 import WindowPanel from "@/components/WindowPanel";
 
 type FormErrors = {
@@ -66,6 +66,8 @@ function LoginForm() {
         return;
       }
 
+      const data: { id: number; name: string } = await res.json().catch(() => ({}));
+      localStorage.setItem("userId", String(data.id));
       router.push("/home");
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
@@ -140,7 +142,7 @@ function LoginForm() {
 
               <input
                 id="password"
-                type="password"
+                type="text"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
@@ -173,8 +175,12 @@ function LoginForm() {
               </a>
             </p>
           </form>
-
-          <BackButton />
+          <Link
+            href="/"
+            className="mt-8 self-start text-base transition-colors hover:text-yellow-200 sm:text-xl"
+          >
+            ▶ トップページへ
+          </Link>
         </WindowPanel>
       </div>
     </main>

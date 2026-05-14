@@ -228,7 +228,7 @@ export default function RegisterPage() {
                 </label>
                 <input
                   id="password"
-                  type="password"
+                  type="text"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
@@ -248,7 +248,7 @@ export default function RegisterPage() {
                 </label>
                 <input
                   id="confirmPassword"
-                  type="password"
+                  type="text"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   autoComplete="new-password"

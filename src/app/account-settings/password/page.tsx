@@ -4,12 +4,26 @@ import Link from "next/link";
 import { useState } from "react";
 
 import WindowPanel from "@/components/WindowPanel";
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
-async function updatePassword(currentPassword: string, newPassword: string) {
-  console.log("TODO: PATCH /api/users/:userId", {
-    currentPassword,
-    newPassword,
+async function updatePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const userId = localStorage.getItem("userId");
+  if (!userId) {
+    throw new Error("ユーザー情報が取得できませんでした");
+  }
+  const response = await fetchWithAuth(`/api/users/${userId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, password: newPassword }),
   });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    const message = data.message
+      ? data.message.replace(/\s*ID:\s*\d+/g, "")
+      : `パスワード変更に失敗しました（${response.status}）`;
+    throw new Error(message);
+  }
 }
 
 export default function PasswordSettingsPage() {
@@ -21,15 +35,28 @@ export default function PasswordSettingsPage() {
 
   const handleSubmit = async () => {
     setMessage("");
+    setErrorMessage("");
+
+    if (newPassword.length < 8 || newPassword.length > 127) {
+      setErrorMessage("パスワードは8文字以上、127文字以内で入力してください");
+      return;
+    }
 
     if (newPassword !== confirmPassword) {
       setErrorMessage("新しいパスワードが一致していません");
       return;
     }
 
-    setErrorMessage("");
-    await updatePassword(currentPassword, newPassword);
-    setMessage("パスワード変更の仮処理を実行しました");
+    try {
+      await updatePassword(currentPassword, newPassword);
+      setMessage("パスワードを変更しました");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "通信エラーが発生しました";
+      setErrorMessage(msg);
+    }
   };
 
   return (

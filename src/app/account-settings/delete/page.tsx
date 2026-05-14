@@ -16,7 +16,11 @@ type DeleteCommand = Readonly<{
 }>;
 
 async function deleteAccount(): Promise<void> {
-  const response = await fetchWithAuth("/api/users/me", {
+  const userId = localStorage.getItem("userId");
+  if (!userId) {
+    throw new Error("ユーザー情報が取得できませんでした");
+  }
+  const response = await fetchWithAuth(`/api/users/${userId}`, {
     method: "DELETE",
   });
 
