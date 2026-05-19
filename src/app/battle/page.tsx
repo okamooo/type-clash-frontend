@@ -21,7 +21,7 @@ interface OpponentInfo {
 
 export default function BattlePage() {
   const router = useRouter();
-  const { currentUser, updateCurrentUser } = useCurrentUser();
+  const { currentUser, updateCurrentUser, canEnterBattle, setCanEnterBattle } = useCurrentUser();
   const [status, setStatus] = useState<BattleStatus>("searching");
   const [matchId, setMatchId] = useState<number | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
@@ -31,6 +31,21 @@ export default function BattlePage() {
 
   const clientRef = useRef<Client | null>(null);
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+
+  // --- URL直叩き防止チェック ---
+  useEffect(() => {
+    // コンテキストのフラグが立っていない場合はホーム画面へリダイレクト
+    if (!canEnterBattle) {
+      router.replace("/home");
+    }
+  }, []); // 最初の一回（マウント時）だけチェック
+
+  // --- 画面を離れる時にフラグを戻しておく ---
+  useEffect(() => {
+    return () => {
+      setCanEnterBattle(false);
+    };
+  }, [setCanEnterBattle]);
 
   // --- 0. localStorage からユーザー情報を同期 ---
   useEffect(() => {
@@ -179,10 +194,9 @@ export default function BattlePage() {
     if (currentUser.id === 0) return;
 
     const handleUnload = () => {
-      navigator.sendBeacon(
-        "/api/battles/queue/leave",
-        JSON.stringify({ userId: currentUser.id })
-      );
+      const data = JSON.stringify({ userId: currentUser.id });
+      const blob = new Blob([data], { type: "application/json" });
+      navigator.sendBeacon("/api/battles/queue/leave", blob);
     };
     window.addEventListener("beforeunload", handleUnload);
     return () => window.removeEventListener("beforeunload", handleUnload);

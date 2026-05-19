@@ -20,6 +20,8 @@ export type CurrentUser = Readonly<{
 type CurrentUserContextValue = Readonly<{
   currentUser: CurrentUser;
   updateCurrentUser: (updates: Partial<CurrentUser>) => void;
+  canEnterBattle: boolean;
+  setCanEnterBattle: (can: boolean) => void;
 }>;
 
 const mockCurrentUser: CurrentUser = {
@@ -37,6 +39,7 @@ export function CurrentUserProvider({
 }: Readonly<{ children: ReactNode }>) {
   // API接続時は認証中の userId で GET /api/users/:userId し、この初期値を置き換える。
   const [currentUser, setCurrentUser] = useState<CurrentUser>(mockCurrentUser);
+  const [canEnterBattle, setCanEnterBattle] = useState(false);
 
   const updateCurrentUser = useCallback((updates: Partial<CurrentUser>) => {
     setCurrentUser((user) => ({
@@ -46,8 +49,13 @@ export function CurrentUserProvider({
   }, []);
 
   const contextValue = useMemo(
-    () => ({ currentUser, updateCurrentUser }),
-    [currentUser, updateCurrentUser],
+    () => ({ 
+      currentUser, 
+      updateCurrentUser, 
+      canEnterBattle, 
+      setCanEnterBattle 
+    }),
+    [currentUser, updateCurrentUser, canEnterBattle],
   );
 
   return (
