@@ -26,8 +26,11 @@ export default function BattlePage() {
   const [matchId, setMatchId] = useState<number | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
   const [isMessageComplete, setIsMessageComplete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
 
   const clientRef = useRef<Client | null>(null);
+  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
   // --- 0. localStorage からユーザー情報を同期 ---
   useEffect(() => {
@@ -74,26 +77,56 @@ export default function BattlePage() {
       heartbeatOutgoing: 4000,
     });
 
+    const fetchOpponentInfo = async (id: number) => {
+      try {
+        const res = await fetchWithAuth(`/api/users/${id}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setOpponent({
+          id: data.id,
+          name: data.name,
+          iconImage: data.iconImage,
+        });
+      } catch (err) {
+        console.error("Failed to fetch opponent info:", err);
+        // マッチをなかったことにして検索に戻す
+        setMatchId(null);
+        setOpponent(null);
+        setStatus("searching");
+        setError("あいての じょうほうしゅとくに しっぱいしました。さいど マッチングします。");
+        // 再度待機列に入る処理はバックエンド側で自動的に行われるため、フロントからは送信しない
+      }
+    };
+
     client.onConnect = () => {
-      console.log("Connected to WebSocket");
+      setIsConnected(true);
+      setError(null);
 
       // マッチング通知を購読
-      client.subscribe(
+      subscriptionRef.current = client.subscribe(
         `/topic/match/notification/${currentUser.id}`,
         (message) => {
-          const data = JSON.parse(message.body);
-          console.log("DEBUG: Match Notification received:", data);
+          let data;
+          try {
+            data = JSON.parse(message.body);
+          } catch (e) {
+            console.error("Invalid message format:", message.body);
+            return;
+          }
+
           if (data.status === "MATCHED") {
             setMatchId(data.matchId);
             fetchOpponentInfo(data.opponentId);
             setStatus("found");
             setIsMessageComplete(false); // メッセージ演出をリセット
+            setError(null);
           } else if (data.status === "CANCELLED") {
             // 相手が離脱した場合、検索中に戻す
-            console.log("Opponent left. Returning to searching...");
             setMatchId(null);
             setOpponent(null);
             setStatus("searching");
+            setError("あいてが にげだした！ べつの あいてを さがします。");
+            // 再度待機列に入る処理はバックエンド側で自動的に行われるため、フロントからは送信しない
           }
         },
       );
@@ -107,6 +140,20 @@ export default function BattlePage() {
 
     client.onStompError = (frame) => {
       console.error("STOMP error", frame);
+      setError("サーバーへの接続に失敗しました。再読み込みしてください。");
+      setIsConnected(false);
+    };
+
+    client.onDisconnect = () => {
+      console.log("Disconnected from WebSocket");
+      setIsConnected(false);
+      // 検索中または発見中に意図せず切断された場合
+      setStatus((currentStatus) => {
+        if (currentStatus === "searching" || currentStatus === "found") {
+          setError("せつぞくが きれました。");
+        }
+        return currentStatus;
+      });
     };
 
     client.activate();
@@ -123,65 +170,65 @@ export default function BattlePage() {
         }
         clientRef.current.deactivate();
       }
+      subscriptionRef.current?.unsubscribe();
     };
   }, [currentUser.id]);
 
-  // 対戦相手の情報取得
-  const fetchOpponentInfo = async (id: number) => {
-    console.log("DEBUG: [fetchOpponentInfo] Attempting to fetch info for ID:", id);
-    try {
-      const res = await fetchWithAuth(`/api/users/${id}`);
-      const data = await res.json();
-      console.log("DEBUG: [fetchOpponentInfo] Received data:", data);
-      setOpponent({
-        id: data.id,
-        name: data.name,
-        iconImage: data.iconImage,
-      });
-    } catch (err) {
-      console.error("Failed to fetch opponent info", err);
-    }
-  };
+  // --- 2. ブラウザ強制終了時の対策 ---
+  useEffect(() => {
+    if (currentUser.id === 0) return;
+
+    const handleUnload = () => {
+      navigator.sendBeacon(
+        "/api/battles/queue/leave",
+        JSON.stringify({ userId: currentUser.id })
+      );
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [currentUser.id]);
 
   const handleFight = () => {
+    // 対戦画面へ遷移する前にサブスクリプションを解除
+    subscriptionRef.current?.unsubscribe();
+    subscriptionRef.current = null;
     // 実際の対戦画面へ（カウントダウン等）
     setStatus("ready");
   };
 
   const handleRun = () => {
-    // 待機列から抜けて再度探す
+    // 待機列から抜けてメニュー画面へ戻る（ループ防止の対策1）
     if (clientRef.current && clientRef.current.connected) {
       clientRef.current.publish({
         destination: "/api/battles/queue/leave",
         body: JSON.stringify({ userId: currentUser.id }),
       });
     }
-    // 再度探す場合は status を searching に戻し、再度 join させる
-    setStatus("searching");
-    if (clientRef.current && clientRef.current.connected) {
-      clientRef.current.publish({
-        destination: "/api/battles/queue/join",
-        body: JSON.stringify({ userId: currentUser.id }),
-      });
-    }
+    router.push("/home");
   };
 
   return (
     <main className="flex flex-1 items-center justify-center p-4">
       <WindowPanel className="max-w-2xl min-h-[400px]">
         <div className="flex w-full flex-col items-center py-6">
+          {error && (
+            <div className="mb-4 text-red-400 text-center font-bold animate-pulse">
+              {error}
+            </div>
+          )}
+
           {/* --- ステータス1: 検索中 --- */}
           {status === "searching" && (
             <div className="flex flex-col items-center py-16">
               {/* グルグル（スピンアニメーション） */}
               <div className="relative mb-12">
-                <div className="h-24 w-24 animate-spin rounded-full border-b-4 border-t-4 border-yellow-400"></div>
+                <div className={`h-24 w-24 animate-spin rounded-full border-b-4 border-t-4 ${isConnected ? "border-yellow-400" : "border-gray-500"}`}></div>
                 <div className="absolute inset-0 flex items-center justify-center text-4xl">
-                  ⚔️
+                  {isConnected ? "⚔️" : "☁️"}
                 </div>
               </div>
               <p className="text-2xl text-white">
-                <TypewriterText text="対戦相手を さがしています..." />
+                <TypewriterText text={isConnected ? "対戦相手を さがしています..." : "サーバーに せつぞくちゅう..."} />
               </p>
               <div className="mt-12">
                 <BackButton />
