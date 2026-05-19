@@ -10,40 +10,39 @@ import WindowPanel from "@/components/WindowPanel";
 const MAX_NAME_LENGTH = 50;
 const API_BASE = "http://localhost:8080";
 
-const SETTINGS = [
-  {
-    label: "メール変更",
-    href: "/account-settings/email",
-    danger: false,
-  },
-  {
-    label: "パスワード変更",
-    href: "/account-settings/password",
-    danger: false,
-  },
-  {
-    label: "アカウント削除",
-    href: "/account-settings/delete",
-    danger: true,
-  },
-] as const;
+const editIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+);
+
+
+type PlayerNameModalProps = {
+  initialName: string;
+  onClose: () => void;
+  onSave: (name: string) => Promise<void>;
+};
 
 /**
  * プレイヤー名変更用モーダル
  */
-function PlayerNameModal({
-  initialName,
-  onClose,
-  onSave,
-}: {
-  initialName: string;
-  onClose: () => void;
-  onSave: (name: string) => Promise<void>;
-}) {
-  const [value, setValue] = useState(initialName);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+function PlayerNameModal(props: PlayerNameModalProps) {
+
   const inputRef = useRef<HTMLInputElement>(null);
+  const [value, setValue] = useState(props.initialName);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -55,7 +54,7 @@ function PlayerNameModal({
     setErrorMessage("");
 
     try {
-      await onSave(value.trim());
+      await props.onSave(value.trim());
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -79,7 +78,7 @@ function PlayerNameModal({
     if (isSubmitting) return;
 
     if (e.key === "Enter") handleSave();
-    if (e.key === "Escape") onClose();
+    if (e.key === "Escape") props.onClose();
   };
 
   return (
@@ -87,7 +86,7 @@ function PlayerNameModal({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isSubmitting) {
-          onClose();
+          props.onClose();
         }
       }}
     >
@@ -98,11 +97,11 @@ function PlayerNameModal({
 
         <div className="mb-1 flex flex-col gap-1">
           <input
-            ref={inputRef}
             type="text"
+            ref={inputRef}
+            value={value}
             disabled={isSubmitting}
             maxLength={MAX_NAME_LENGTH}
-            value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             className="w-full rounded border border-white/30 bg-white/10 px-3 py-2 text-lg outline-none focus:border-white/60 disabled:opacity-60"
@@ -113,9 +112,8 @@ function PlayerNameModal({
           </p>
 
           <p
-            role={errorMessage ? "alert" : undefined}
-            className={`min-h-[30px] -mb-5 text-xs ${errorMessage ? "text-red-400" : "text-transparent"
-              }`}
+            role="alert"
+            className={`min-h-[30px] -mb-5 text-sm ${errorMessage ? "text-red-400" : "text-transparent"}`}
           >
             {errorMessage || "\u00A0"}
           </p>
@@ -124,7 +122,7 @@ function PlayerNameModal({
         <div className="mt-10 flex gap-5">
           <button
             type="button"
-            onClick={onClose}
+            onClick={props.onClose}
             className="flex-1 cursor-pointer border-2 border-white bg-[#050816] py-1.5 font-bold transition-colors hover:border-red-400 hover:text-red-400"
           >
             キャンセル
@@ -144,20 +142,20 @@ function PlayerNameModal({
   );
 }
 
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  iconImage: string | null;
+};
+
 /**
  * アカウント設定画面
  */
 export default function AccountSettingsPage() {
   const router = useRouter();
-
+  const [user, setUser] = useState<User | null>(null);
   const [showModal, setShowModal] = useState(false);
-
-  const [user, setUser] = useState<{
-    id: number;
-    name: string;
-    email: string;
-    iconImage: string | null;
-  } | null>(null);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -177,7 +175,7 @@ export default function AccountSettingsPage() {
         const data = await res.json();
 
         setUser(data);
-        
+
       } catch {
         console.error("ユーザー情報の取得に失敗しました");
       }
@@ -185,10 +183,6 @@ export default function AccountSettingsPage() {
 
     fetchUser();
   }, []);
-
-  const handleGoHome = () => {
-    router.push("/home");
-  };
 
   /**
    * プレイヤー名変更APIを呼び出す
@@ -220,7 +214,10 @@ export default function AccountSettingsPage() {
 
       const data: { id: number; name: string } = await res.json();
 
-      setUser((prev) => prev ? { ...prev, name: data.name } : prev);
+      setUser((prev) => {
+        if (!prev) return prev;
+        return { ...prev, name: data.name };
+      });
 
       setShowModal(false);
     } catch (error) {
@@ -230,7 +227,7 @@ export default function AccountSettingsPage() {
         );
       }
 
-      throw error;
+      throw new Error("通信エラーが発生しました");
     } finally {
       clearTimeout(timeoutId);
     }
@@ -258,21 +255,7 @@ export default function AccountSettingsPage() {
                   {user?.name}
                 </span>
 
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="transition-colors group-hover:text-yellow-200"
-                >
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
+                {editIcon}
               </button>
             </div>
 
@@ -283,26 +266,30 @@ export default function AccountSettingsPage() {
 
             <div className="mt-8 w-full border-2 border-white p-4 text-left shadow-[4px_4px_0_rgba(0,0,0,0.45)]">
               <ul className="flex flex-col gap-4 text-lg">
-                {SETTINGS.map((item) => (
-                  <li key={item.label}>
-                    <Link
-                      href={item.href}
-                      className={`transition-colors ${item.danger
-                        ? "hover:text-red-300"
-                        : "hover:text-yellow-200"
-                        }`}
-                    >
-                      ▶ {item.label}
-                    </Link>
-                  </li>
-                ))}
+                <li>
+                  <Link href="/account-settings/email">
+                    ▶ メール変更
+                  </Link>
+                </li>
+
+                <li>
+                  <Link href="/account-settings/password">
+                    ▶ パスワード変更
+                  </Link>
+                </li>
+
+                <li>
+                  <Link href="/account-settings/delete">
+                    ▶ アカウント削除
+                  </Link>
+                </li>
               </ul>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={handleGoHome}
+            onClick={() => router.push("/home")}
             className="mt-8 self-start text-base transition-colors hover:text-yellow-200 sm:text-xl"
           >
             ▶ ホーム画面に戻る
