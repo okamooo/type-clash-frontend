@@ -25,6 +25,8 @@ const headerVisiblePaths = new Set([
   "/account-settings/delete",
   "/result/BattleResult",
   "/result/SingleResult",
+  "/rankings",
+  "/score-history",
 ]);
 
 export default function CommonHeader() {
