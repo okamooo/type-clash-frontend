@@ -76,7 +76,12 @@ export default function RegisterPage() {
   async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const validationErrors = validateRegister(name, email, password, confirmPassword);
+    const validationErrors = validateRegister(
+      name,
+      email,
+      password,
+      confirmPassword,
+    );
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -86,7 +91,7 @@ export default function RegisterPage() {
     setErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/users/register`, {
+      const res = await fetch(`${API_BASE}/api/auth/otp/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -110,10 +115,7 @@ export default function RegisterPage() {
         return;
       }
 
-      // 二段階認証API（/api/auth/verify-code）未実装のため、
-      // 登録成功後にログイン画面へ遷移する。
-      // setStep("verify");
-      router.push("/login");
+      setStep("verify");
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
@@ -124,21 +126,15 @@ export default function RegisterPage() {
   async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const validationErrors = validateCode(verificationCode);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
 
     setIsSubmitting(true);
     setErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/verify-code`, {
+      const res = await fetch(`${API_BASE}/api/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, code: verificationCode }),
+        body: JSON.stringify({ email, otp: verificationCode }),
       });
 
       if (!res.ok) {
@@ -148,6 +144,28 @@ export default function RegisterPage() {
       }
 
       router.push("/login");
+    } catch {
+      setErrors({ general: "通信エラーが発生しました" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleReSend() {
+    setIsSubmitting(true);
+    setErrors({});
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/otp/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      if (!res.ok) {
+        setErrors({ general: "再送信に失敗しました" });
+      }
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
@@ -284,10 +302,12 @@ export default function RegisterPage() {
               {/* 案内文 / 通信エラー */}
               <p
                 role={errors.general ? "alert" : undefined}
-                className={`whitespace-nowrap text-left text-sm ${errors.general ? "text-red-400" : "text-slate-300"
-                  }`}
+                className={`whitespace-nowrap text-left text-sm ${
+                  errors.general ? "text-red-400" : "text-slate-300"
+                }`}
               >
-                {errors.general ?? "メールアドレスに送信された認証コードを入力してください。"}
+                {errors.general ??
+                  "メールアドレスに送信された認証コードを入力してください。"}
               </p>
 
               {/* 認証コード */}
@@ -315,6 +335,15 @@ export default function RegisterPage() {
                 className="mt-1 border border-slate-400 bg-[#0d1b3e]/60 py-2 text-lg font-bold tracking-[0.03em] text-white hover:border-yellow-200 hover:text-yellow-200 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSubmitting ? "読み込み中..." : "認証する"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleReSend}
+                disabled={isSubmitting}
+                className="text-sm text-slate-300 underline-offset-2 hover:text-sky-400 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                認証コードを再送信する
               </button>
             </form>
           )}
