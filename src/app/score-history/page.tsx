@@ -86,7 +86,7 @@ export default function HistoryPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center">
-      <div className="[&>section]:h-[500px] [&>section]:w-[750px] [&>section]:pt-3">
+      <div className="[&>section]:h-[650px] [&>section]:w-[750px] [&>section]:pt-3">
         <WindowPanel>
           {/* タイトル */}
           <div className="flex items-center justify-center gap-3">
@@ -212,12 +212,12 @@ export default function HistoryPage() {
                       </span>
 
                       {/* スコア */}
-                      <span className="flex items-center justify-center text-sm font-medium tracking-[0.1em] text-yellow-200">
+                      <span className="flex items-center pr-8 justify-center text-sm font-medium tracking-[0.1em] text-yellow-200">
                         {history.score.toLocaleString()}
                       </span>
 
                       {/* 正答率 */}
-                      <span className="flex items-center justify-center text-sm font-medium tracking-[0.1em] text-slate-300">
+                      <span className="flex items-center pr-8 justify-center text-sm font-medium tracking-[0.1em] text-slate-300">
                         {history.accuracyRate}%
                       </span>
                     </li>
