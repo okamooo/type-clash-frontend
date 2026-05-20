@@ -151,7 +151,7 @@ function LoginForm() {
             </div>
 
             <p className="-mt-1.5 text-left text-sm">
-              <a href="/forgot-password">
+              <a href="/password-reset/request">
                 <span className="text-slate-300 underline-offset-2 transition-colors hover:text-sky-400 hover:underline">
                   パスワードを忘れた方はこちら
                 </span>
