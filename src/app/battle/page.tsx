@@ -10,14 +10,8 @@ import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import BackButton from "@/components/BackButton";
 import UserAvatar from "@/components/UserAvatar";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
-
-type BattleStatus = "searching" | "found" | "ready" | "playing" | "finished";
-
-interface OpponentInfo {
-  id: number;
-  name: string;
-  iconImage: string | null;
-}
+import { MagicWord, BattleStatus, OpponentInfo, BattleMessage } from "@/types/battle";
+import BattlePlaying from "@/components/BattlePlaying";
 
 export default function BattlePage() {
   const router = useRouter();
@@ -25,12 +19,18 @@ export default function BattlePage() {
   const [status, setStatus] = useState<BattleStatus>("searching");
   const [matchId, setMatchId] = useState<number | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
+  const [role, setRole] = useState<"player1" | "player2" | null>(null);
+  const [words, setWords] = useState<MagicWord[]>([]);
+  const [opponentStatus, setOpponentStatus] = useState<BattleMessage | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const [countdown, setCountdown] = useState(3);
   const [isMessageComplete, setIsMessageComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   const clientRef = useRef<Client | null>(null);
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const battleSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
   // --- URL直叩き防止チェック ---
   useEffect(() => {
@@ -61,6 +61,7 @@ export default function BattlePage() {
 
       // バックエンドから ID, 名前, アイコンのみを取得して反映
       const syncUser = async () => {
+        if (!userId || userId === "0") return;
         try {
           const res = await fetchWithAuth(`/api/users/${userId}`);
           if (res.ok) {
@@ -105,12 +106,28 @@ export default function BattlePage() {
       } catch (err) {
         console.error("Failed to fetch opponent info:", err);
         // マッチをなかったことにして検索に戻す
-        setMatchId(null);
-        setOpponent(null);
-        setStatus("searching");
-        setError("あいての じょうほうしゅとくに しっぱいしました。さいど マッチングします。");
-        // 再度待機列に入る処理はバックエンド側で自動的に行われるため、フロントからは送信しない
+        handleMatchError("あいての じょうほうしゅとくに しっぱいしました。さいど マッチングします。");
       }
+    };
+
+    const fetchMagicWords = async () => {
+      try {
+        const res = await fetchWithAuth("/api/magic-words");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setWords(data);
+      } catch (err) {
+        console.error("Failed to fetch magic words:", err);
+        handleMatchError("たいせんワードの しゅとくに しっぱいしました。さいど マッチングします。");
+      }
+    };
+
+    const handleMatchError = (message: string) => {
+      setMatchId(null);
+      setOpponent(null);
+      setWords([]);
+      setStatus("searching");
+      setError(message);
     };
 
     client.onConnect = () => {
@@ -130,8 +147,31 @@ export default function BattlePage() {
           }
 
           if (data.status === "MATCHED") {
-            setMatchId(data.matchId);
+            const mId = data.matchId;
+            setMatchId(mId);
+            setRole(data.role);
             fetchOpponentInfo(data.opponentId);
+            fetchMagicWords();
+            
+            // 対戦中の進捗購読を開始
+            battleSubscriptionRef.current = client.subscribe(
+              `/topic/battle/${mId}`,
+              (message) => {
+                const battleData = JSON.parse(message.body);
+
+                // サーバーからの対戦開始合図を受け取った場合
+                if (battleData.status === "START_BATTLE") {
+                  startSynchronizedCountdown();
+                  return;
+                }
+
+                // 自分以外のデータ（相手のデータ）であれば反映する
+                if (battleData.userId !== currentUser.id) {
+                  setOpponentStatus(battleData);
+                }
+              }
+            );
+
             setStatus("found");
             setIsMessageComplete(false); // メッセージ演出をリセット
             setError(null);
@@ -147,10 +187,12 @@ export default function BattlePage() {
       );
 
       // マッチング待機列に参加
-      client.publish({
-        destination: "/api/battles/queue/join",
-        body: JSON.stringify({ userId: currentUser.id }),
-      });
+      if (status === "searching") {
+        client.publish({
+          destination: "/api/battles/queue/join",
+          body: JSON.stringify({ userId: currentUser.id }),
+        });
+      }
     };
 
     client.onStompError = (frame) => {
@@ -186,6 +228,7 @@ export default function BattlePage() {
         clientRef.current.deactivate();
       }
       subscriptionRef.current?.unsubscribe();
+      battleSubscriptionRef.current?.unsubscribe();
     };
   }, [currentUser.id]);
 
@@ -203,11 +246,93 @@ export default function BattlePage() {
   }, [currentUser.id]);
 
   const handleFight = () => {
-    // 対戦画面へ遷移する前にサブスクリプションを解除
-    subscriptionRef.current?.unsubscribe();
-    subscriptionRef.current = null;
-    // 実際の対戦画面へ（カウントダウン等）
+    if (clientRef.current && clientRef.current.connected && matchId) {
+      setIsReady(true);
+      // サーバーに準備完了を送る
+      clientRef.current.publish({
+        destination: "/api/battles/ready",
+        body: JSON.stringify({ matchId, userId: currentUser.id }),
+      });
+    }
+  };
+
+  const startSynchronizedCountdown = () => {
     setStatus("ready");
+    // 3秒間のカウントダウン開始
+    let count = 3;
+    setCountdown(count);
+    const interval = setInterval(() => {
+      count -= 1;
+      if (count <= 0) {
+        clearInterval(interval);
+        setStatus("playing");
+      } else {
+        setCountdown(count);
+      }
+    }, 1000);
+  };
+
+  const handleBattleFinish = async (result: any) => {
+    setStatus("finished");
+    
+    // 勝者の判定
+    let winnerId = null;
+    if (result.reason === "win_ko") {
+      winnerId = currentUser.id;
+    } else if (result.reason === "lose_ko") {
+      winnerId = opponent?.id || null;
+    } else if (result.reason === "time_up") {
+      if (result.myHp > result.opponentHp) {
+        winnerId = currentUser.id;
+      } else if (result.myHp < result.opponentHp) {
+        winnerId = opponent?.id || null;
+      } else {
+        // HPが同じ場合はスコアで判定
+        if (result.score > (opponentStatus?.score || 0)) {
+          winnerId = currentUser.id;
+        } else if (result.score < (opponentStatus?.score || 0)) {
+          winnerId = opponent?.id || null;
+        }
+      }
+    }
+
+    // バックエンドに結果を保存
+    try {
+      const battleResult = {
+        player1Id: role === "player1" ? currentUser.id : opponent?.id,
+        player2Id: role === "player2" ? currentUser.id : opponent?.id,
+        player1Score: role === "player1" ? result.score : (opponentStatus?.score || 0),
+        player2Score: role === "player2" ? result.score : (opponentStatus?.score || 0),
+        player1AccuracyRate: role === "player1" ? result.accuracy : (opponentStatus?.accuracyRate || 0),
+        player2AccuracyRate: role === "player2" ? result.accuracy : (opponentStatus?.accuracyRate || 0),
+        player1TypedChars: role === "player1" ? result.typedChars : (opponentStatus?.typedChars || 0),
+        player1MissCount: role === "player1" ? result.missCount : (opponentStatus?.missCount || 0),
+        player2TypedChars: role === "player2" ? result.typedChars : (opponentStatus?.typedChars || 0),
+        player2MissCount: role === "player2" ? result.missCount : (opponentStatus?.missCount || 0),
+        winnerId: winnerId,
+      };
+
+      const res = await fetchWithAuth("/api/battle-results", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(battleResult),
+      });
+
+      if (res.ok) {
+        const savedResult = await res.json();
+        // 結果画面へ遷移 (対戦結果IDを渡す)
+        router.push(`/result/BattleResult?id=${savedResult.id}`);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Server error response:", errorData);
+        throw new Error(`Failed to save result: ${res.status}`);
+      }
+    } catch (err) {
+      console.error("Error submitting result:", err);
+      setError("けっかの ほぞんに しっぱいしました。サーバーの ログを かくにんしてください。");
+    }
   };
 
   const handleRun = () => {
@@ -281,12 +406,20 @@ export default function BattlePage() {
               <div
                 className={`flex flex-col items-start gap-4 transition-opacity duration-500 ${isMessageComplete ? "opacity-100" : "opacity-0 pointer-events-none"}`}
               >
-                <button onClick={handleFight} className="text-left w-full">
-                  <MenuItem showCursor>たたかう</MenuItem>
-                </button>
-                <button onClick={handleRun} className="text-left w-full">
-                  <MenuItem showCursor>にげる</MenuItem>
-                </button>
+                {!isReady ? (
+                  <>
+                    <button onClick={handleFight} className="text-left w-full">
+                      <MenuItem showCursor>たたかう</MenuItem>
+                    </button>
+                    <button onClick={handleRun} className="text-left w-full">
+                      <MenuItem showCursor>にげる</MenuItem>
+                    </button>
+                  </>
+                ) : (
+                  <div className="text-xl text-yellow-400 animate-pulse font-bold">
+                    あいての じゅんびを まっています...
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -294,14 +427,35 @@ export default function BattlePage() {
           {/* --- ステータス3: カウントダウン / 準備中 --- */}
           {status === "ready" && (
             <div className="flex flex-col items-center py-20">
-              <p className="text-3xl mb-8">じゅんびは いいか！</p>
+              <p className="text-3xl mb-8 font-bold">じゅんびは いいか！</p>
               <div className="text-8xl font-black text-yellow-400 animate-ping">
-                3
+                {countdown}
               </div>
             </div>
           )}
 
-          {/* 実際に対戦が始まったら、ここからプレイ画面のコンポーネントへ繋ぐ */}
+          {/* --- ステータス4: 対戦中 --- */}
+          {status === "playing" && matchId && opponent && (
+            <BattlePlaying
+              matchId={matchId}
+              currentUser={currentUser}
+              opponent={opponent}
+              words={words}
+              client={clientRef.current}
+              opponentStatus={opponentStatus}
+              onFinish={handleBattleFinish}
+            />
+          )}
+
+          {/* --- ステータス5: 終了 --- */}
+          {status === "finished" && (
+            <div className="flex flex-col items-center py-20">
+              <div className="h-24 w-24 animate-spin rounded-full border-b-4 border-t-4 border-white"></div>
+              <p className="mt-8 text-2xl text-white font-bold animate-pulse">
+                けっかを ほうこくちゅう...
+              </p>
+            </div>
+          )}
         </div>
       </WindowPanel>
     </main>
