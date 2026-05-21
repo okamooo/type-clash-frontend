@@ -82,8 +82,8 @@ export default function BattlePage() {
 
   // --- 1. WebSocket 接続とマッチング処理 ---
   useEffect(() => {
-    // ユーザーIDが確定するまで接続を待機
-    if (currentUser.id === 0) return;
+    // ユーザーIDが確定するまで接続を待機、または既に接続が開始されている場合は何もしない
+    if (currentUser.id === 0 || clientRef.current?.active) return;
 
     const client = new Client({
       brokerURL: "ws://localhost:8080/ws-battle",
@@ -104,12 +104,17 @@ export default function BattlePage() {
         });
       } catch (err) {
         console.error("Failed to fetch opponent info:", err);
-        // マッチをなかったことにして検索に戻す
+        // マッチをキャンセルし、バックエンドに再参加を明示的に通知してから検索画面に戻す
+        if (client.connected) {
+          client.publish({
+            destination: "/api/battles/queue/join",
+            body: JSON.stringify({ userId: currentUser.id }),
+          });
+        }
         setMatchId(null);
         setOpponent(null);
         setStatus("searching");
         setError("あいての じょうほうしゅとくに しっぱいしました。さいど マッチングします。");
-        // 再度待機列に入る処理はバックエンド側で自動的に行われるため、フロントからは送信しない
       }
     };
 
@@ -196,7 +201,8 @@ export default function BattlePage() {
     const handleUnload = () => {
       const data = JSON.stringify({ userId: currentUser.id });
       const blob = new Blob([data], { type: "application/json" });
-      navigator.sendBeacon("/api/battles/queue/leave", blob);
+      // Next.jsのオリジンではなくバックエンドのオリジンへ明示的に送信する
+      navigator.sendBeacon("http://localhost:8080/api/battles/queue/leave", blob);
     };
     window.addEventListener("beforeunload", handleUnload);
     return () => window.removeEventListener("beforeunload", handleUnload);
