@@ -127,6 +127,12 @@ export default function RegisterPage() {
   async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
+    const validationErrors = validateCode(verificationCode);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
 
     setIsSubmitting(true);
     setErrors({});
