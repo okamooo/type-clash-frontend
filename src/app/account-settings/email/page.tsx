@@ -111,7 +111,6 @@ export default function EmailSettingsPage() {
                 onChange={(event) => setEmail(event.target.value)}
                 className="border-2 border-white bg-[#050816] px-4 py-3 text-white outline-none focus:border-yellow-200"
                 placeholder="guest@example.com"
-                required
               />
             </label>
 
@@ -123,7 +122,6 @@ export default function EmailSettingsPage() {
                 onChange={(event) => setConfirmEmail(event.target.value)}
                 className="border-2 border-white bg-[#050816] px-4 py-3 text-white outline-none focus:border-yellow-200"
                 placeholder="guest@example.com"
-                required
               />
             </label>
 

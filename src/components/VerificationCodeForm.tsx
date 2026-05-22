@@ -97,7 +97,9 @@ export default function VerificationCodeForm({
           onChange={(e) => onCodeChange(e.target.value)}
           className="border-2 border-white bg-[#050816] px-4 py-3 text-white outline-none focus:border-yellow-200"
           placeholder="認証コードを入力"
-          required
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
         />
       </label>
 
