@@ -127,33 +127,20 @@ export default function RegisterPage() {
   async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
+
     setIsSubmitting(true);
     setErrors({});
 
     try {
-      // OTP検証 → 成功すると registerToken Cookie がセットされる
-      const verifyRes = await fetch(`${API_BASE}/api/auth/otp/verify`, {
+      const res = await fetch(`${API_BASE}/api/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ email, otp: verificationCode }),
       });
 
-      if (!verifyRes.ok) {
-        const data: { message?: string } = await verifyRes.json().catch(() => ({}));
+      if (!res.ok) {
+        const data: { message?: string } = await res.json().catch(() => ({}));
         setErrors({ general: data.message ?? "認証コードが正しくありません" });
-        return;
-      }
-
-      // 本登録 → Cookie の registerToken を自動送信
-      const registerRes = await fetch(`${API_BASE}/api/auth/registerUser`, {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!registerRes.ok) {
-        const data: { message?: string } = await registerRes.json().catch(() => ({}));
-        setErrors({ general: data.message ?? "ユーザー登録に失敗しました" });
         return;
       }
 

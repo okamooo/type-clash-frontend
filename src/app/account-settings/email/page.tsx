@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import VerificationCodeForm from "@/components/VerificationCodeForm";
 import WindowPanel from "@/components/WindowPanel";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
@@ -133,17 +132,38 @@ export default function EmailSettingsPage() {
             </button>
           </form>
         ) : (
-          <VerificationCodeForm
-            verificationCode={verificationCode}
-            onCodeChange={setVerificationCode}
+          <form
             onSubmit={handleVerify}
-            error={errorMessage}
-            variant="settings"
-          />
+            noValidate
+            className="mt-8 flex w-full max-w-md flex-col gap-5 text-left"
+          >
+            <p className="text-sm text-slate-300">
+              メールアドレスに送信された認証コードを入力してください。
+            </p>
+
+            <label className="flex flex-col gap-2">
+              <span className="text-yellow-200">認証コード</span>
+              <input
+                type="text"
+                value={verificationCode}
+                onChange={(event) => setVerificationCode(event.target.value)}
+                className="border-2 border-white bg-[#050816] px-4 py-3 text-white outline-none focus:border-yellow-200"
+                placeholder="認証コードを入力"
+                required
+              />
+            </label>
+
+            <button
+              type="submit"
+              className="self-start border-2 border-white px-4 py-2 transition-colors hover:border-yellow-200 hover:text-yellow-200"
+            >
+              ▶ 認証する
+            </button>
+          </form>
         )}
 
         {message ? <p className="mt-4 text-yellow-200">{message}</p> : null}
-        {step === "email" && errorMessage ? (
+        {errorMessage ? (
           <p className="mt-4 text-red-300">{errorMessage}</p>
         ) : null}
 
