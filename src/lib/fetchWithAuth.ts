@@ -7,7 +7,7 @@ export async function fetchWithAuth(path: string, options?: RequestInit): Promis
     credentials: "include",
   });
 
-  if (res.status === 401 || res.status === 403 || res.status === 503) {
+  if (res.status === 401 || res.status === 403) {
     window.location.href = "/login?reason=expired";
     throw new Error("Redirecting to login");
   }
