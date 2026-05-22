@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import VerificationCodeForm from "@/components/VerificationCodeForm";
 import WindowPanel from "@/components/WindowPanel";
 
 type FormErrors = {
@@ -77,12 +76,7 @@ export default function RegisterPage() {
   async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const validationErrors = validateRegister(
-      name,
-      email,
-      password,
-      confirmPassword,
-    );
+    const validationErrors = validateRegister(name, email, password, confirmPassword);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -92,7 +86,7 @@ export default function RegisterPage() {
     setErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/otp/register`, {
+      const res = await fetch(`${API_BASE}/api/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -116,7 +110,10 @@ export default function RegisterPage() {
         return;
       }
 
-      setStep("verify");
+      // 二段階認証API（/api/auth/verify-code）未実装のため、
+      // 登録成功後にログイン画面へ遷移する。
+      // setStep("verify");
+      router.push("/login");
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
@@ -127,15 +124,21 @@ export default function RegisterPage() {
   async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
+    const validationErrors = validateCode(verificationCode);
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
 
     setIsSubmitting(true);
     setErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/otp/verify`, {
+      const res = await fetch(`${API_BASE}/api/auth/verify-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp: verificationCode }),
+        credentials: "include",
+        body: JSON.stringify({ email, code: verificationCode }),
       });
 
       if (!res.ok) {
@@ -145,28 +148,6 @@ export default function RegisterPage() {
       }
 
       router.push("/login");
-    } catch {
-      setErrors({ general: "通信エラーが発生しました" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleReSend() {
-    setIsSubmitting(true);
-    setErrors({});
-
-    try {
-      const res = await fetch(`${API_BASE}/api/auth/otp/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      if (!res.ok) {
-        setErrors({ general: "再送信に失敗しました" });
-      }
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
@@ -295,16 +276,47 @@ export default function RegisterPage() {
               </p>
             </form>
           ) : (
-            <VerificationCodeForm
-              verificationCode={verificationCode}
-              onCodeChange={setVerificationCode}
+            <form
               onSubmit={handleVerify}
-              onResend={handleReSend}
-              isSubmitting={isSubmitting}
-              error={errors.general}
-              fieldError={errors.verificationCode}
-              variant="register"
-            />
+              noValidate
+              className="mt-6 flex w-full max-w-sm flex-col gap-5"
+            >
+              {/* 案内文 / 通信エラー */}
+              <p
+                role={errors.general ? "alert" : undefined}
+                className={`whitespace-nowrap text-left text-sm ${errors.general ? "text-red-400" : "text-slate-300"
+                  }`}
+              >
+                {errors.general ?? "メールアドレスに送信された認証コードを入力してください。"}
+              </p>
+
+              {/* 認証コード */}
+              <div className="flex flex-col gap-1">
+                <label
+                  htmlFor="verificationCode"
+                  role={errors.verificationCode ? "alert" : undefined}
+                  className={`min-h-[20px] text-left text-sm ${errors.verificationCode ? "text-red-300" : "text-slate-200"}`}
+                >
+                  {errors.verificationCode ?? "認証コード"}
+                </label>
+                <input
+                  id="verificationCode"
+                  type="text"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  placeholder="認証コードを入力"
+                  className="border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="mt-1 border border-slate-400 bg-[#0d1b3e]/60 py-2 text-lg font-bold tracking-[0.03em] text-white hover:border-yellow-200 hover:text-yellow-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSubmitting ? "読み込み中..." : "認証する"}
+              </button>
+            </form>
           )}
         </WindowPanel>
       </div>
