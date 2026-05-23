@@ -151,11 +151,11 @@ function LoginForm() {
             </div>
 
             <p className="-mt-1.5 text-left text-sm">
-              <a href="/forgot-password">
+              <Link href="/password-reset/request">
                 <span className="text-slate-300 underline-offset-2 transition-colors hover:text-sky-400 hover:underline">
                   パスワードを忘れた方はこちら
                 </span>
-              </a>
+              </Link>
             </p>
 
             {/* ログインボタン */}
@@ -168,11 +168,11 @@ function LoginForm() {
             </button>
 
             <p className="mt-3 text-center text-[1.15rem]">
-              <a href="/register">
+              <Link href="/register">
                 <span className="text-blue-300 underline-offset-2 transition-colors hover:text-sky-400 hover:underline">
                   新規登録はこちら
                 </span>
-              </a>
+              </Link>
             </p>
           </form>
           <Link
