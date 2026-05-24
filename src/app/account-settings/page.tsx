@@ -104,22 +104,22 @@ function PlayerNameModal(props: PlayerNameModalProps) {
             maxLength={MAX_NAME_LENGTH}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            className="w-full rounded border border-white/30 bg-white/10 px-3 py-2 text-lg outline-none focus:border-white/60 disabled:opacity-60"
+            className="w-full rounded border border-white/30 bg-white/10 px-3 py-1.5 text-lg outline-none focus:border-white/60 disabled:opacity-60"
           />
 
-          <p className="text-xs text-center text-white/50">
+          <p className="text-xs text-white/50">
             {MAX_NAME_LENGTH}文字まで入力できます
           </p>
 
           <p
             role="alert"
-            className={`min-h-[30px] -mb-5 text-sm ${errorMessage ? "text-red-400" : "text-transparent"}`}
+            className={`min-h-[20px] mt-1 text-sm ${errorMessage ? "text-red-400" : "text-transparent"}`}
           >
             {errorMessage || "\u00A0"}
           </p>
         </div>
 
-        <div className="mt-10 flex gap-5">
+        <div className="flex gap-10">
           <button
             type="button"
             onClick={props.onClose}
@@ -134,7 +134,7 @@ function PlayerNameModal(props: PlayerNameModalProps) {
             disabled={!value.trim() || isSubmitting}
             className="flex-1 cursor-pointer border-2 border-white bg-[#050816] py-1.5 font-bold transition-colors hover:border-blue-400 hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isSubmitting ? "保存中..." : "OK"}
+            {isSubmitting ? "保存中" : "OK"}
           </button>
         </div>
       </div>
@@ -223,7 +223,7 @@ export default function AccountSettingsPage() {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         throw new Error(
-          "通信に時間がかかっています。時間をおいて再度お試しください"
+          "時間をおいて再度お試しください"
         );
       }
 
@@ -249,7 +249,7 @@ export default function AccountSettingsPage() {
                 type="button"
                 onClick={() => setShowModal(true)}
                 disabled={!user}
-                className="group flex w-full cursor-pointer items-center rounded border border-white/20 bg-white/5 px-3 py-3 text-left text-2xl transition-colors hover:border-white/40 disabled:cursor-not-allowed disabled:opacity-50"
+                className="group flex w-full cursor-pointer items-center rounded border border-white/20 bg-white/5 px-3 py-1.5 text-left text-2xl transition-colors hover:border-white/40 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span className="flex-1 truncate text-center">
                   {user?.name}
