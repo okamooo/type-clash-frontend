@@ -4,29 +4,24 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import Link from "next/link";
+import EyeIcon from "@/components/EyeIcon";
 import WindowPanel from "@/components/WindowPanel";
-
-type FormErrors = {
-  email?: string;
-  password?: string;
-  general?: string;
-};
+import {
+  validateEmail,
+  validatePassword,
+  type ValidationErrors,
+} from "@/lib/validation";
 
 // const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const API_BASE = "http://localhost:8080";
 
-function validate(email: string, password: string): FormErrors {
-  const errors: FormErrors = {};
+function validate(email: string, password: string): ValidationErrors {
+  const errors: ValidationErrors = {};
+  const emailError = validateEmail(email);
+  const passwordError = validatePassword(password);
 
-  if (!email) {
-    errors.email = "メールアドレスを入力してください";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.email = "メールアドレスの形式が正しくありません";
-  }
-
-  if (!password) {
-    errors.password = "パスワードを入力してください";
-  }
+  if (emailError) errors.email = emailError;
+  if (passwordError) errors.password = passwordError;
 
   return errors;
 }
@@ -37,7 +32,8 @@ function LoginForm() {
   const isExpired = searchParams.get("reason") === "expired";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<ValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -104,7 +100,7 @@ function LoginForm() {
             {/* 通信エラー */}
             <p
               role={errors.general ? "alert" : undefined}
-              className={`min-h-[25px] -mt-6 text-left text-base ${errors.general ? "text-red-400" : "text-transparent"}`}
+              className={`min-h-[20px] -mt-8 text-left text-base font-semibold ${errors.general ? "text-red-400" : "text-transparent"}`}
             >
               {errors.general ?? "\u00A0"}
             </p>
@@ -140,14 +136,24 @@ function LoginForm() {
                 {errors.password ?? "パスワード"}
               </label>
 
-              <input
-                id="password"
-                type="text"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                className="border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  className="w-full border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 pr-12 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                  aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示する"}
+                >
+                  <EyeIcon isHidden={!showPassword} />
+                </button>
+              </div>
             </div>
 
             <p className="-mt-1.5 text-left text-sm">
@@ -167,7 +173,7 @@ function LoginForm() {
               {isSubmitting ? "読み込み中..." : "ログイン"}
             </button>
 
-            <p className="mt-3 text-center text-[1.15rem]">
+            <p className="mt-2.5 text-center text-[1.15rem]">
               <Link href="/register">
                 <span className="text-blue-300 underline-offset-2 transition-colors hover:text-sky-400 hover:underline">
                   新規登録はこちら
@@ -175,11 +181,10 @@ function LoginForm() {
               </Link>
             </p>
           </form>
-          <Link
-            href="/"
-            className="mt-8 self-start text-base transition-colors hover:text-yellow-200 sm:text-xl"
-          >
-            ▶ トップページへ
+          <Link href="/" className="mt-6.5 self-start">
+            <span className="text-lg transition-colors hover:text-yellow-200">
+                ◀ トップページへ
+            </span>
           </Link>
         </WindowPanel>
       </div>

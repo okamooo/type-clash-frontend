@@ -3,86 +3,98 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import EyeIcon from "@/components/EyeIcon";
 import WindowPanel from "@/components/WindowPanel";
+import {
+  validateConfirmPassword,
+  validatePassword,
+  type ValidationErrors,
+} from "@/lib/validation";
 import Link from "next/link";
-
-type FormErrors = {
-  password?: string;
-  confirmPassword?: string;
-  general?: string;
-};
 
 const API_BASE = "http://localhost:8080";
 
-function validatePasswords(password: string, confirmPassword: string): FormErrors {
-  const errors: FormErrors = {};
+function validatePasswords(password: string, confirmPassword: string): ValidationErrors {
+  const errors: ValidationErrors = {};
+  const passwordError = validatePassword(
+    password,
+    "新しいパスワードを入力してください",
+  );
+  const confirmPasswordError = validateConfirmPassword(password, confirmPassword);
 
-  if (!password) {
-    errors.password = "新しいパスワードを入力してください";
-  } else if (password.length < 8 || password.length > 127) {
-    errors.password = "パスワードは8文字以上、127文字以内で入力してください";
-  }
-
-  if (!confirmPassword) {
-    errors.confirmPassword = "確認用パスワードを入力してください";
-  } else if (password !== confirmPassword) {
-    errors.confirmPassword = "パスワードが一致しません";
-  }
+  if (passwordError) errors.password = passwordError;
+  if (confirmPasswordError) errors.confirmPassword = confirmPasswordError;
 
   return errors;
 }
 
-function EyeIcon({ visible }: { visible: boolean }) {
-  if (visible) {
-    return (
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-    </svg>
-  );
-}
-
-export default function PasswordResetResetPage() {
+export default function PasswordResetNewPage() {
   const router = useRouter();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const [isSessionInvalid, setIsSessionInvalid] = useState(false);
 
   // クッキーの有無をサーバーに確認する
   useEffect(() => {
+    let mounted = true;
+
     async function checkSession() {
       try {
         const res = await fetch(`${API_BASE}/api/auth/password-reset/verify-session`, {
           method: "GET",
           credentials: "include",
         });
+
+        if (!mounted) return;
+
         if (!res.ok) {
+          setIsSessionInvalid(true);
           setErrors({ general: "有効期限が切れています。再度お試しください。" });
-          setIsSubmitting(true);
 
           setTimeout(() => {
-            router.push("/password-reset");
+            if (mounted) {
+              router.push("/password-reset/request");
+            }
           }, 2000);
 
           return;
         }
       } catch {
-        setErrors({ general: "通信エラーが発生しました" });
+        if (mounted) {
+          setErrors({ general: "通信エラーが発生しました" });
+        }
+      } finally {
+        if (mounted) {
+          setIsCheckingSession(false);
+        }
       }
     }
+
     checkSession();
+
+    return () => {
+      mounted = false;
+    };
   }, [router]);
+
+  function handleConfirmPasswordBlur() {
+    if (!confirmPassword) return;
+
+    const confirmPasswordError = validateConfirmPassword(password, confirmPassword);
+    if (confirmPasswordError) {
+      setErrors((prev) => ({ ...prev, confirmPassword: confirmPasswordError }));
+      return;
+    }
+
+    setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -95,10 +107,11 @@ export default function PasswordResetResetPage() {
 
     setIsSubmitting(true);
     setErrors({});
+    setSuccessMessage("");
 
     try {
       // emailはクッキーでバックエンドが参照するため送信不要
-      const res = await fetch(`${API_BASE}/api/auth/password-reset/reset`, {
+      const res = await fetch(`${API_BASE}/api/auth/password-reset/new`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -110,7 +123,11 @@ export default function PasswordResetResetPage() {
         return;
       }
 
-      router.push("/login");
+      setSuccessMessage("パスワードを更新しました");
+
+      setTimeout(() => {
+        router.push("/login");
+      }, 1500);
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
@@ -118,9 +135,12 @@ export default function PasswordResetResetPage() {
     }
   }
 
+  const isButtonDisabled =
+    isSubmitting || isCheckingSession || isSessionInvalid || Boolean(successMessage);
+
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto">
-      <div className="[&>section]:min-h-[500px] [&>section]:min-w-[600px]">
+      <div className="[&>section]:min-w-[600px]">
         <WindowPanel>
           <h1 className="text-3xl font-bold tracking-wide text-white">
             パスワード再設定
@@ -131,16 +151,16 @@ export default function PasswordResetResetPage() {
             noValidate
             className="mt-6 flex w-full max-w-sm flex-col gap-5"
           >
-            <p className="whitespace-pre-wrap -mt-3 text-left text-sm text-slate-300">
-              {"新しいパスワードを入力してください。\n8文字以上、127文字以内で設定してください。"}
-            </p>
 
-            {/* 通信エラー */}
+            {/* メッセージ表示 */}
             <p
-              role={errors.general ? "alert" : undefined}
-              className={`min-h-[25px] -mt-3 text-left text-sm ${errors.general ? "text-red-400" : "text-transparent"}`}
+              role={errors.general || successMessage ? "alert" : undefined}
+              className={`min-h-[20px] text-left text-[15.5px] font-semibold ${errors.general ? "text-red-400" :
+                  successMessage ? "text-emerald-300" :
+                    "text-transparent"
+                }`}
             >
-              {errors.general ?? "\u00A0"}
+              {errors.general || successMessage || "\u00A0"}
             </p>
 
             {/* 新しいパスワード */}
@@ -159,7 +179,7 @@ export default function PasswordResetResetPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
-                  placeholder="新しいパスワードを入力してください"
+                  placeholder="8文字以上、127文字以内"
                   className="w-full border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 pr-12 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
                 />
                 <button
@@ -168,7 +188,7 @@ export default function PasswordResetResetPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
                   aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示する"}
                 >
-                  <EyeIcon visible={showPassword} />
+                  <EyeIcon isHidden={!showPassword} />
                 </button>
               </div>
             </div>
@@ -188,8 +208,9 @@ export default function PasswordResetResetPage() {
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
+                  onBlur={handleConfirmPasswordBlur}
                   autoComplete="new-password"
-                  placeholder="新しいパスワードを再入力してください"
+                  placeholder="パスワードを再入力してください"
                   className="w-full border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 pr-12 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
                 />
                 <button
@@ -198,7 +219,7 @@ export default function PasswordResetResetPage() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
                   aria-label={showConfirmPassword ? "パスワードを隠す" : "パスワードを表示する"}
                 >
-                  <EyeIcon visible={showConfirmPassword} />
+                  <EyeIcon isHidden={!showConfirmPassword} />
                 </button>
               </div>
             </div>
@@ -206,13 +227,19 @@ export default function PasswordResetResetPage() {
             {/* 更新ボタン */}
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isButtonDisabled}
               className="mt-1 border border-slate-400 bg-[#0d1b3e]/60 py-2 text-lg font-bold tracking-[0.03em] text-white hover:border-yellow-200 hover:text-yellow-200 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSubmitting ? "読み込み中..." : "パスワードを更新する"}
+              {isCheckingSession
+                ? "確認中..."
+                : isSubmitting
+                  ? "送信中..."
+                  : successMessage
+                    ? "ログイン画面へ移動中..."
+                    : "パスワードを更新する"}
             </button>
 
-            <p className="text-center text-sm text-slate-300">
+            <p className="text-center text-base text-slate-300">
               <Link href="/login">
                 <span className="text-blue-300 underline-offset-2 transition-colors hover:text-sky-400 hover:underline">
                   ログイン画面に戻る

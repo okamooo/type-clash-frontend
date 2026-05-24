@@ -3,17 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import EyeIcon from "@/components/EyeIcon";
 import VerificationCodeForm from "@/components/VerificationCodeForm";
 import WindowPanel from "@/components/WindowPanel";
-
-type FormErrors = {
-  name?: string;
-  email?: string;
-  password?: string;
-  confirmPassword?: string;
-  verificationCode?: string;
-  general?: string;
-};
+import { useResendCooldown } from "@/hooks/useResendCooldown";
+import {
+  validateConfirmPassword,
+  validateEmail,
+  validatePassword,
+  validateVerificationCode,
+  type ValidationErrors,
+} from "@/lib/validation";
+import Link from "next/link";
 
 const API_BASE = "http://localhost:8080";
 
@@ -22,40 +23,20 @@ function validateRegister(
   email: string,
   password: string,
   confirmPassword: string,
-): FormErrors {
-  const errors: FormErrors = {};
+): ValidationErrors {
+  const errors: ValidationErrors = {};
 
   if (!name) {
     errors.name = "ユーザー名を入力してください";
   }
 
-  if (!email) {
-    errors.email = "メールアドレスを入力してください";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.email = "メールアドレスの形式が正しくありません";
-  }
+  const emailError = validateEmail(email);
+  const passwordError = validatePassword(password);
+  const confirmPasswordError = validateConfirmPassword(password, confirmPassword);
 
-  if (!password) {
-    errors.password = "パスワードを入力してください";
-  } else if (password.length < 8 || password.length > 127) {
-    errors.password = "パスワードは8文字以上、127文字以内で入力してください";
-  }
-
-  if (!confirmPassword) {
-    errors.confirmPassword = "確認用パスワードを入力してください";
-  } else if (password !== confirmPassword) {
-    errors.confirmPassword = "パスワードが一致しません";
-  }
-
-  return errors;
-}
-
-function validateCode(code: string): FormErrors {
-  const errors: FormErrors = {};
-
-  if (!code) {
-    errors.verificationCode = "認証コードを入力してください";
-  }
+  if (emailError) errors.email = emailError;
+  if (passwordError) errors.password = passwordError;
+  if (confirmPasswordError) errors.confirmPassword = confirmPasswordError;
 
   return errors;
 }
@@ -69,10 +50,16 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [verificationCode, setVerificationCode] = useState("");
 
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [successMessage, setSuccessMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const { resendCooldown, resendSuccess, startResendCooldown } =
+    useResendCooldown();
 
   async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,6 +77,7 @@ export default function RegisterPage() {
 
     setIsSubmitting(true);
     setErrors({});
+    setSuccessMessage("");
 
     try {
       const res = await fetch(`${API_BASE}/api/auth/otp/register`, {
@@ -127,13 +115,12 @@ export default function RegisterPage() {
   async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const validationErrors = validateCode(verificationCode);
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    const codeError = validateVerificationCode(verificationCode);
+    if (codeError) {
+      setErrors({ verificationCode: codeError });
       return;
     }
-
-
+    
     setIsSubmitting(true);
     setErrors({});
 
@@ -141,6 +128,7 @@ export default function RegisterPage() {
       const res = await fetch(`${API_BASE}/api/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, otp: verificationCode }),
       });
 
@@ -150,7 +138,11 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push("/login");
+      setSuccessMessage("登録が完了しました");
+
+      setTimeout(() => {
+        router.push("/login");
+      }, 1500);
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
@@ -159,7 +151,7 @@ export default function RegisterPage() {
   }
 
   async function handleReSend() {
-    setIsSubmitting(true);
+    setIsResending(true);
     setErrors({});
 
     try {
@@ -172,11 +164,14 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         setErrors({ general: "再送信に失敗しました" });
+        return;
       }
+
+      startResendCooldown();
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
-      setIsSubmitting(false);
+      setIsResending(false);
     }
   }
 
@@ -197,13 +192,13 @@ export default function RegisterPage() {
               {/* 通信エラー */}
               <p
                 role={errors.general ? "alert" : undefined}
-                className={`min-h-[25px] -mt-3 text-left text-base ${errors.general ? "text-red-400" : "text-transparent"}`}
+                className={`min-h-[20px] -mt-1 text-left text-base font-semibold ${errors.general ? "text-red-400" : "text-transparent"}`}
               >
                 {errors.general ?? "\u00A0"}
               </p>
 
               {/* ユーザー名 */}
-              <div className="flex flex-col gap-1">
+              <div className="-mt-2 flex flex-col gap-1">
                 <label
                   htmlFor="name"
                   role={errors.name ? "alert" : undefined}
@@ -251,15 +246,25 @@ export default function RegisterPage() {
                 >
                   {errors.password ?? "パスワード"}
                 </label>
-                <input
-                  id="password"
-                  type="text"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                  placeholder="8文字以上、127文字以内"
-                  className="border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
-                />
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                    placeholder="8文字以上、127文字以内"
+                    className="w-full border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 pr-12 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                    aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示する"}
+                  >
+                    <EyeIcon isHidden={!showPassword} />
+                  </button>
+                </div>
               </div>
 
               {/* パスワード（確認用） */}
@@ -271,15 +276,25 @@ export default function RegisterPage() {
                 >
                   {errors.confirmPassword ?? "パスワード（確認用）"}
                 </label>
-                <input
-                  id="confirmPassword"
-                  type="text"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  autoComplete="new-password"
-                  placeholder="パスワードを再入力してください"
-                  className="border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
-                />
+                <div className="relative">
+                  <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
+                    placeholder="パスワードを再入力してください"
+                    className="w-full border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 pr-12 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                    aria-label={showConfirmPassword ? "パスワードを隠す" : "パスワードを表示する"}
+                  >
+                    <EyeIcon isHidden={!showConfirmPassword} />
+                  </button>
+                </div>
               </div>
 
               {/* 登録ボタン */}
@@ -293,11 +308,11 @@ export default function RegisterPage() {
 
               <p className="text-center text-sm text-slate-300">
                 すでにアカウントをお持ちの方は{" "}
-                <a href="/login">
+                <Link href="/login">
                   <span className="text-blue-300 underline-offset-2 transition-colors hover:text-sky-400 hover:underline">
                     ログイン
                   </span>
-                </a>
+                </Link>
               </p>
             </form>
           ) : (
@@ -307,9 +322,12 @@ export default function RegisterPage() {
               onSubmit={handleVerify}
               onResend={handleReSend}
               isSubmitting={isSubmitting}
+              isResending={isResending}
               error={errors.general}
               fieldError={errors.verificationCode}
-              variant="register"
+              successMessage={successMessage}
+              resendCooldown={resendCooldown}
+              resendSuccess={resendSuccess}
             />
           )}
         </WindowPanel>

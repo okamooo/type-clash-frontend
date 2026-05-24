@@ -5,27 +5,15 @@ import { useRouter } from "next/navigation";
 
 import VerificationCodeForm from "@/components/VerificationCodeForm";
 import WindowPanel from "@/components/WindowPanel";
+import { useResendCooldown } from "@/hooks/useResendCooldown";
+import {
+  validateEmail,
+  validateVerificationCode,
+  type ValidationErrors,
+} from "@/lib/validation";
 import Link from "next/link";
 
-type FormErrors = {
-  email?: string;
-  verificationCode?: string;
-  general?: string;
-};
-
 const API_BASE = "http://localhost:8080";
-
-function validateEmail(email: string): FormErrors {
-  const errors: FormErrors = {};
-
-  if (!email) {
-    errors.email = "メールアドレスを入力してください";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errors.email = "メールアドレスの形式が正しくありません";
-  }
-
-  return errors;
-}
 
 export default function PasswordResetRequestPage() {
   const [step, setStep] = useState<"request" | "verify">("request");
@@ -34,17 +22,19 @@ export default function PasswordResetRequestPage() {
   const [verificationCode, setVerificationCode] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [resendSuccess, setResendSuccess] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const { resendCooldown, resendSuccess, startResendCooldown } =
+    useResendCooldown();
 
-  const [errors, setErrors] = useState<FormErrors>({});
+  const [errors, setErrors] = useState<ValidationErrors>({});
 
   const router = useRouter();
 
   async function handleRequest(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const validationErrors = validateEmail(email);
+    const emailError = validateEmail(email);
+    const validationErrors: ValidationErrors = emailError ? { email: emailError } : {};
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -83,8 +73,9 @@ export default function PasswordResetRequestPage() {
   async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!verificationCode.trim()) {
-      setErrors({ verificationCode: "認証コードを入力してください" });
+    const codeError = validateVerificationCode(verificationCode);
+    if (codeError) {
+      setErrors({ verificationCode: codeError });
       return;
     }
 
@@ -92,7 +83,7 @@ export default function PasswordResetRequestPage() {
     setErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/otp/verify`, {
+      const res = await fetch(`${API_BASE}/api/auth/password-reset/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -104,7 +95,7 @@ export default function PasswordResetRequestPage() {
         return;
       }
 
-      router.push("/password-reset/reset");
+      router.push("/password-reset/new");
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
@@ -113,7 +104,7 @@ export default function PasswordResetRequestPage() {
   }
 
   async function handleReSend() {
-    setIsSubmitting(true);
+    setIsResending(true);
     setErrors({});
 
     try {
@@ -129,31 +120,20 @@ export default function PasswordResetRequestPage() {
         return;
       }
 
-      // 成功フィードバック
-      setResendSuccess(true);
-      setTimeout(() => setResendSuccess(false), 3000);
-
-      // 30秒クールダウン
-      setResendCooldown(30);
-      const timer = setInterval(() => {
-        setResendCooldown((prev) => {
-          if (prev <= 1) { clearInterval(timer); return 0; }
-          return prev - 1;
-        });
-      }, 1000);
+      startResendCooldown();
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
-      setIsSubmitting(false);
+      setIsResending(false);
     }
   }
 
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto">
-      <div className="[&>section]:min-h-[400px] [&>section]:min-w-[600px]">
+      <div className="[&>section]:min-w-[600px]">
         <WindowPanel>
           <h1 className="text-3xl font-bold tracking-wide text-white">
-            パスワード再設定申請
+            パスワード再設定
           </h1>
 
           {step === "request" ? (
@@ -162,16 +142,17 @@ export default function PasswordResetRequestPage() {
               noValidate
               className="mt-6 flex w-full max-w-sm flex-col gap-5"
             >
-              <p className="whitespace-nowrap -mt-3 text-left text-sm text-slate-300">
-                登録済みのメールアドレスを入力してください。
-              </p>
-
+              
               {/* 通信エラー */}
               <p
                 role={errors.general ? "alert" : undefined}
-                className={`min-h-[25px] -mt-3 text-left text-sm ${errors.general ? "text-red-400" : "text-transparent"}`}
+                className={`min-h-[20px] text-left text-[15.5px] font-semibold ${errors.general ? "text-red-400" : "text-transparent"}`}
               >
                 {errors.general ?? "\u00A0"}
+              </p>
+
+              <p className="whitespace-nowrap -mt-4 text-left text-[15px] text-slate-300">
+                登録済みのメールアドレスを入力してください
               </p>
 
               {/* メールアドレス */}
@@ -203,7 +184,7 @@ export default function PasswordResetRequestPage() {
                 {isSubmitting ? "読み込み中..." : "送信する"}
               </button>
 
-              <p className="text-center text-sm text-slate-300">
+              <p className="text-center text-base text-slate-300">
                 <Link href="/login">
                   <span className="text-blue-300 underline-offset-2 transition-colors hover:text-sky-400 hover:underline">
                     ログイン画面に戻る
@@ -218,12 +199,11 @@ export default function PasswordResetRequestPage() {
               onSubmit={handleVerify}
               onResend={handleReSend}
               isSubmitting={isSubmitting}
+              isResending={isResending}
               error={errors.general}
               fieldError={errors.verificationCode}
-              variant="register"
-              // 後で外す
-              // resendCooldown={resendCooldown}
-              // resendSuccess={resendSuccess}
+              resendCooldown={resendCooldown}
+              resendSuccess={resendSuccess}
             />
           )}
         </WindowPanel>

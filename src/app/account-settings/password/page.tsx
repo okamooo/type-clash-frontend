@@ -5,6 +5,10 @@ import { useState } from "react";
 
 import WindowPanel from "@/components/WindowPanel";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
+import {
+  validateConfirmPassword,
+  validatePassword,
+} from "@/lib/validation";
 
 async function updatePassword(currentPassword: string, newPassword: string): Promise<void> {
   const userId = localStorage.getItem("userId");
@@ -32,22 +36,34 @@ export default function PasswordSettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     setMessage("");
     setErrorMessage("");
 
-    if (newPassword.length < 8 || newPassword.length > 127) {
-      setErrorMessage("パスワードは8文字以上、127文字以内で入力してください");
+    if (!currentPassword) {
+      setErrorMessage("現在のパスワードを入力してください");
       return;
     }
 
-    if (newPassword !== confirmPassword) {
-      setErrorMessage("新しいパスワードが一致していません");
+    const newPasswordError = validatePassword(newPassword);
+    if (newPasswordError) {
+      setErrorMessage(newPasswordError);
+      return;
+    }
+
+    const confirmPasswordError = validateConfirmPassword(
+      newPassword,
+      confirmPassword,
+    );
+    if (confirmPasswordError) {
+      setErrorMessage(confirmPasswordError);
       return;
     }
 
     try {
+      setIsSubmitting(true);
       await updatePassword(currentPassword, newPassword);
       setMessage("パスワードを変更しました");
       setCurrentPassword("");
@@ -56,6 +72,8 @@ export default function PasswordSettingsPage() {
     } catch (error) {
       const msg = error instanceof Error ? error.message : "通信エラーが発生しました";
       setErrorMessage(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -110,9 +128,10 @@ export default function PasswordSettingsPage() {
 
           <button
             type="submit"
-            className="self-start border-2 border-white px-4 py-2 transition-colors hover:border-yellow-200 hover:text-yellow-200"
+            disabled={isSubmitting}
+            className="self-start border-2 border-white px-4 py-2 transition-colors hover:border-yellow-200 hover:text-yellow-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            ▶ 変更する
+            {isSubmitting ? "▶ 変更中..." : "▶ 変更する"}
           </button>
         </form>
 
