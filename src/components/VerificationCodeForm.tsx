@@ -25,7 +25,6 @@ export default function VerificationCodeForm({
   error,
   fieldError,
   successMessage,
-  description = "メールアドレスに送信された認証コードを入力してください。",
   resendCooldown = 0,
   resendSuccess = false,
 }: VerificationCodeFormProps) {
@@ -35,27 +34,26 @@ export default function VerificationCodeForm({
       noValidate
       className="mt-6 flex w-full max-w-sm flex-col gap-5"
     >
-      <p className="whitespace-nowrap text-left text-sm text-slate-300">
-        {description}
-      </p>
-      {(error || successMessage) && (
-        <p
-          role="alert"
-          className={`-mt-3 text-left text-sm ${
-            error ? "text-red-400" : "text-emerald-300"
+      <p
+        role={error || successMessage ? "alert" : undefined}
+        className={`min-h-[20px] text-left text-[15px] ${error ? "text-red-400" :
+          successMessage ? "text-emerald-300" :
+            "text-transparent"
           }`}
-        >
-          {error || successMessage}
-        </p>
-      )}
+      >
+        {error || successMessage || "\u00A0"}
+      </p>
+
+      <p className="whitespace-nowrap -mt-4 text-left text-[15px] text-slate-300">
+        メールに送信された認証コードを入力してください
+      </p>
 
       <div className="flex flex-col gap-1">
         <label
           htmlFor="verificationCode"
           role={fieldError ? "alert" : undefined}
-          className={`min-h-[20px] text-left text-sm ${
-            fieldError ? "text-red-300" : "text-slate-200"
-          }`}
+          className={`min-h-[20px] text-left text-sm ${fieldError ? "text-red-300" : "text-slate-200"
+            }`}
         >
           {fieldError ?? "認証コード"}
         </label>
@@ -80,8 +78,8 @@ export default function VerificationCodeForm({
         {successMessage
           ? "ログイン画面へ移動中..."
           : isSubmitting
-          ? "認証中..."
-          : "認証する"}
+            ? "認証中..."
+            : "認証する"}
       </button>
 
       {onResend && (
@@ -95,12 +93,13 @@ export default function VerificationCodeForm({
             {resendCooldown > 0
               ? `再送信まで ${resendCooldown} 秒`
               : isResending
-              ? "再送信中..."
-              : "認証コードを再送信する"}
+                ? "再送信中..."
+                : "認証コードを再送信する"}
           </button>
-          {resendSuccess && (
-            <p className="text-sm text-emerald-300">認証コードを再送信しました</p>
-          )}
+          <p className={`min-h-[20px] text-sm ${resendSuccess ? "text-emerald-300" : "text-transparent"
+            }`}>
+            {resendSuccess ? "認証コードを再送信しました" : "\u00A0"}
+          </p>
         </div>
       )}
     </form>

@@ -27,6 +27,7 @@ export default function PasswordResetRequestPage() {
     useResendCooldown();
 
   const [errors, setErrors] = useState<ValidationErrors>({});
+  const [otpLimitMessage, setOtpLimitMessage] = useState("");
 
   const router = useRouter();
 
@@ -79,6 +80,11 @@ export default function PasswordResetRequestPage() {
       return;
     }
 
+    if (otpLimitMessage) {
+      setErrors({ general: otpLimitMessage });
+      return;
+    }
+
     setIsSubmitting(true);
     setErrors({});
 
@@ -91,7 +97,19 @@ export default function PasswordResetRequestPage() {
       });
 
       if (!res.ok) {
-        setErrors({ general: "認証コードが正しくありません" });
+        const data: { message?: string } = await res.json().catch(() => ({}));
+        const isLimitError = data.message?.startsWith("試行回数の上限に達しました");
+        const limitMessage = "試行回数の上限に達しました 再発行してください";
+
+        if (isLimitError) {
+          setOtpLimitMessage(limitMessage);
+        }
+
+        setErrors({
+          general: isLimitError
+            ? limitMessage
+            : "認証コードが正しくありません",
+        });
         return;
       }
 
@@ -120,6 +138,7 @@ export default function PasswordResetRequestPage() {
         return;
       }
 
+      setOtpLimitMessage("");
       startResendCooldown();
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
@@ -130,10 +149,10 @@ export default function PasswordResetRequestPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto">
-      <div className="[&>section]:min-w-[600px]">
+      <div className="[&>section]:min-h-[400px] [&>section]:min-w-[535px]">
         <WindowPanel>
           <h1 className="text-3xl font-bold tracking-wide text-white">
-            パスワード再設定
+            {step === "verify" ? "認証コードを入力" : "パスワード再設定"}
           </h1>
 
           {step === "request" ? (

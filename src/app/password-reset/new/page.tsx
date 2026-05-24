@@ -56,7 +56,7 @@ export default function PasswordResetNewPage() {
 
         if (!res.ok) {
           setIsSessionInvalid(true);
-          setErrors({ general: "有効期限が切れています。再度お試しください。" });
+          setErrors({ general: "有効期限が切れています 再度お試しください" });
 
           setTimeout(() => {
             if (mounted) {
@@ -140,7 +140,7 @@ export default function PasswordResetNewPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto">
-      <div className="[&>section]:min-w-[600px]">
+      <div className="[&>section]:min-h-[400px] [&>section]:min-w-[535px]">
         <WindowPanel>
           <h1 className="text-3xl font-bold tracking-wide text-white">
             パスワード再設定

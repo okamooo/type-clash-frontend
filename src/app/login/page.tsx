@@ -74,7 +74,7 @@ function LoginForm() {
 
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto">
-      <div className="[&>section]:min-h-[500px] [&>section]:min-w-[500px]">
+      <div className="[&>section]:min-h-[500px] [&>section]:min-w-[535px]">
         <WindowPanel>
           <h1 className="transform-[perspective(320px)_rotateX(12deg)_skewX(-8deg)_scaleY(1.08)] text-4xl font-bold tracking-wide text-white drop-shadow-[4px_4px_0_#64748b]">
             Type<span className="text-yellow-300">★</span>Clash
@@ -94,7 +94,7 @@ function LoginForm() {
               role={isExpired ? "alert" : undefined}
               className={`min-h-[25px] -mt-6 text-left text-base ${isExpired ? "text-yellow-300" : "text-transparent"}`}
             >
-              {isExpired ? "セッションの有効期限が切れました。" : "\u00A0"}
+              {isExpired ? "セッションの有効期限が切れました" : "\u00A0"}
             </p>
 
             {/* 通信エラー */}

@@ -56,6 +56,7 @@ export default function RegisterPage() {
 
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [successMessage, setSuccessMessage] = useState("");
+  const [otpLimitMessage, setOtpLimitMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const { resendCooldown, resendSuccess, startResendCooldown } =
@@ -92,7 +93,7 @@ export default function RegisterPage() {
 
         if (res.status === 409) {
           setErrors({
-            general: "このメールアドレスは既に登録されています。",
+            general: "このメールアドレスは既に登録されています",
           });
           return;
         }
@@ -120,6 +121,11 @@ export default function RegisterPage() {
       setErrors({ verificationCode: codeError });
       return;
     }
+
+    if (otpLimitMessage) {
+      setErrors({ general: otpLimitMessage });
+      return;
+    }
     
     setIsSubmitting(true);
     setErrors({});
@@ -134,7 +140,18 @@ export default function RegisterPage() {
 
       if (!res.ok) {
         const data: { message?: string } = await res.json().catch(() => ({}));
-        setErrors({ general: data.message ?? "認証コードが正しくありません" });
+        const isLimitError = data.message?.startsWith("試行回数の上限に達しました");
+        const limitMessage = "試行回数の上限に達しました 再発行してください";
+
+        if (isLimitError) {
+          setOtpLimitMessage(limitMessage);
+        }
+
+        setErrors({
+          general: isLimitError
+            ? limitMessage
+            : "認証コードが正しくありません",
+        });
         return;
       }
 
@@ -167,6 +184,7 @@ export default function RegisterPage() {
         return;
       }
 
+      setOtpLimitMessage("");
       startResendCooldown();
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
@@ -177,10 +195,16 @@ export default function RegisterPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto">
-      <div className="[&>section]:min-h-[500px] [&>section]:min-w-[600px]">
+      <div
+        className={
+          step === "verify"
+            ? "[&>section]:min-h-[400px] [&>section]:min-w-[535px]"
+            : "[&>section]:min-h-[500px] [&>section]:min-w-[535px]"
+        }
+      >
         <WindowPanel>
           <h1 className="text-3xl font-bold tracking-wide text-white">
-            新規登録
+            {step === "verify" ? "認証コードを入力" : "新規登録"}
           </h1>
 
           {step === "register" ? (
