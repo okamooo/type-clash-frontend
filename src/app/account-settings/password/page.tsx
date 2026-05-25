@@ -3,8 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 
+import EyeIcon from "@/components/EyeIcon";
 import WindowPanel from "@/components/WindowPanel";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
+import {
+  validateConfirmPassword,
+  validatePassword,
+} from "@/lib/validation";
 
 async function updatePassword(currentPassword: string, newPassword: string): Promise<void> {
   const userId = localStorage.getItem("userId");
@@ -32,21 +37,36 @@ export default function PasswordSettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async () => {
     setMessage("");
     setErrorMessage("");
 
-    if (newPassword.length < 8 || newPassword.length > 127) {
-      setErrorMessage("パスワードは8文字以上、127文字以内で入力してください");
+    if (!currentPassword) {
+      setErrorMessage("現在のパスワードを入力してください");
       return;
     }
 
-    if (newPassword !== confirmPassword) {
-      setErrorMessage("新しいパスワードが一致していません");
+    const newPasswordError = validatePassword(newPassword);
+    if (newPasswordError) {
+      setErrorMessage(newPasswordError);
       return;
     }
 
+    const confirmPasswordError = validateConfirmPassword(
+      newPassword,
+      confirmPassword,
+    );
+    if (confirmPasswordError) {
+      setErrorMessage(confirmPasswordError);
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
       await updatePassword(currentPassword, newPassword);
       setMessage("パスワードを変更しました");
@@ -56,6 +76,8 @@ export default function PasswordSettingsPage() {
     } catch (error) {
       const msg = error instanceof Error ? error.message : "通信エラーが発生しました";
       setErrorMessage(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -77,42 +99,73 @@ export default function PasswordSettingsPage() {
         >
           <label className="flex flex-col gap-2">
             <span className="text-yellow-200">現在のパスワード</span>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              className="border-2 border-white bg-[#050816] px-4 py-3 text-white outline-none focus:border-yellow-200"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showCurrentPassword ? "text" : "password"}
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                className="w-full border-2 border-white bg-[#050816] px-4 py-3 pr-12 text-white outline-none focus:border-yellow-200"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword((value) => !value)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                aria-label={showCurrentPassword ? "パスワードを隠す" : "パスワードを表示する"}
+              >
+                <EyeIcon isHidden={!showCurrentPassword} />
+              </button>
+            </div>
           </label>
 
           <label className="flex flex-col gap-2">
             <span className="text-yellow-200">新しいパスワード</span>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              className="border-2 border-white bg-[#050816] px-4 py-3 text-white outline-none focus:border-yellow-200"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showNewPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                className="w-full border-2 border-white bg-[#050816] px-4 py-3 pr-12 text-white outline-none focus:border-yellow-200"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowNewPassword((value) => !value)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                aria-label={showNewPassword ? "パスワードを隠す" : "パスワードを表示する"}
+              >
+                <EyeIcon isHidden={!showNewPassword} />
+              </button>
+            </div>
           </label>
 
           <label className="flex flex-col gap-2">
             <span className="text-yellow-200">新しいパスワードをもう一度</span>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              className="border-2 border-white bg-[#050816] px-4 py-3 text-white outline-none focus:border-yellow-200"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                className="w-full border-2 border-white bg-[#050816] px-4 py-3 pr-12 text-white outline-none focus:border-yellow-200"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((value) => !value)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                aria-label={showConfirmPassword ? "パスワードを隠す" : "パスワードを表示する"}
+              >
+                <EyeIcon isHidden={!showConfirmPassword} />
+              </button>
+            </div>
           </label>
 
           <button
             type="submit"
-            className="self-start border-2 border-white px-4 py-2 transition-colors hover:border-yellow-200 hover:text-yellow-200"
+            disabled={isSubmitting}
+            className="self-start border-2 border-white px-4 py-2 transition-colors hover:border-yellow-200 hover:text-yellow-200 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            ▶ 変更する
+            {isSubmitting ? "▶ 変更中..." : "▶ 変更する"}
           </button>
         </form>
 
