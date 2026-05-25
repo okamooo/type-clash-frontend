@@ -94,7 +94,7 @@ export default function RankingsPage() {
 
   return (
     <main className="flex flex-1 items-center justify-center">
-      <div className="[&>section]:h-[500px] [&>section]:w-[750px] [&>section]:pt-3">
+      <div className="[&>section]:h-[650px] [&>section]:w-[750px] [&>section]:pt-3">
         <WindowPanel>
           {/* タイトル */}
           <div className="flex items-center justify-center gap-3">
@@ -160,7 +160,7 @@ export default function RankingsPage() {
           <div className="mt-5 w-full">
             <div className="grid grid-cols-[5rem_1fr_7rem_7rem] gap-2 border-b border-yellow-200/30 pb-1.5 text-sm text-slate-400">
               <span className="pr-5 text-center">順位</span>
-              <span className="pl-2.5 text-left">ユーザー名</span>
+              <span className="pl-2 text-left">ユーザー名</span>
               <span className="pl-2.5 text-left">スコア</span>
               <span className="pl-2.5 text-left">正答率</span>
             </div>
@@ -201,12 +201,12 @@ export default function RankingsPage() {
                     </span>
 
                     {/* スコア */}
-                    <span className="flex items-center justify-center text-sm font-medium tracking-[0.1em] text-slate-300">
+                    <span className="flex items-center pr-8 justify-center text-sm font-medium tracking-[0.1em] text-slate-300">
                       {ranking.score.toLocaleString()}
                     </span>
 
                     {/* 正答率 */}
-                    <span className="flex items-center justify-center text-sm font-medium tracking-[0.1em] text-slate-300">
+                    <span className="flex items-center pr-8 justify-center text-sm font-medium tracking-[0.1em] text-slate-300">
                       {ranking.accuracyRate}%
                     </span>
                   </li>
