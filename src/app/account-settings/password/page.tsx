@@ -66,8 +66,8 @@ export default function PasswordSettingsPage() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
       await updatePassword(currentPassword, newPassword);
       setMessage("パスワードを変更しました");
       setCurrentPassword("");

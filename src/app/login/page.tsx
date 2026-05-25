@@ -181,7 +181,7 @@ function LoginForm() {
               </Link>
             </p>
           </form>
-          <Link href="/" className="mt-6.5 self-start">
+          <Link href="/" className="mt-6 self-start">
             <span className="text-lg transition-colors hover:text-yellow-200">
                 ◀ トップページへ
             </span>
