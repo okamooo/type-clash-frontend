@@ -36,7 +36,7 @@ type PlayerNameModalProps = {
 };
 
 /**
- * プレイヤー名変更用モーダル
+ * ユーザー名変更用モーダル
  */
 function PlayerNameModal(props: PlayerNameModalProps) {
 
@@ -96,7 +96,7 @@ function PlayerNameModal(props: PlayerNameModalProps) {
     >
       <div className="flex w-[90vw] max-w-[340px] flex-col gap-4 rounded-lg border-2 border-white/30 bg-[#0f1e3b] p-6 shadow-[4px_4px_0_rgba(0,0,0,0.5)]">
         <h2 className="text-center text-xl font-bold drop-shadow-[2px_2px_0_#64748b]">
-          プレイヤー名
+          ユーザー名
         </h2>
 
         <div className="mb-1 flex flex-col gap-1">
@@ -189,7 +189,7 @@ export default function AccountSettingsPage() {
   }, [updateCurrentUser]);
 
   /**
-   * プレイヤー名変更APIを呼び出す
+   * ユーザー名変更APIを呼び出す
    * 通信タイムアウト時はリクエストを中断する
    */
   const handleSaveName = async (newName: string) => {
