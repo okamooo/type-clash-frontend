@@ -131,15 +131,17 @@ export default function RegisterPage() {
     setErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/otp/verify`, {
+      // OTP検証 → 成功すると registerToken Cookie がセットされる
+      const verifyRes = await fetch(`${API_BASE}/api/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ email, otp: verificationCode }),
       });
 
-      if (!res.ok) {
-        const data: { message?: string } = await res.json().catch(() => ({}));
+
+      if (!verifyRes.ok) {
+        const data: { message?: string } = await verifyRes.json().catch(() => ({}));
         const isLimitError = data.message?.startsWith("試行回数の上限に達しました");
         const limitMessage = "試行回数の上限に達しました 再発行してください";
 
@@ -155,11 +157,23 @@ export default function RegisterPage() {
         return;
       }
 
+      const registerRes = await fetch(`${API_BASE}/api/auth/registerUser`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!registerRes.ok) {
+        const data: { message?: string } = await registerRes.json().catch(() => ({}));
+        setErrors({ general: data.message ?? "ユーザー登録に失敗しました" });
+        return;
+      }
+
       setSuccessMessage("登録が完了しました");
 
       setTimeout(() => {
         router.push("/login");
       }, 1500);
+
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
