@@ -31,6 +31,18 @@ export default function BattlePage() {
   const clientRef = useRef<Client | null>(null);
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
   const battleSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const opponentStatusRef = useRef<BattleMessage | null>(null);
+  const isSavingRef = useRef(false);
+  const battleEndedRef = useRef(false);
+  const statusRef = useRef<BattleStatus>("searching");
+
+  useEffect(() => {
+    opponentStatusRef.current = opponentStatus;
+  }, [opponentStatus]);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   // --- URL直叩き防止チェック ---
   useEffect(() => {
@@ -176,12 +188,19 @@ export default function BattlePage() {
             setIsMessageComplete(false); // メッセージ演出をリセット
             setError(null);
           } else if (data.status === "CANCELLED") {
-            // 相手が離脱した場合、検索中に戻す
+            // 対戦中・終了処理中の leave は無視（結果画面遷移時の queue/leave 対策）
+            if (
+              battleEndedRef.current ||
+              statusRef.current === "playing" ||
+              statusRef.current === "ready" ||
+              statusRef.current === "finished"
+            ) {
+              return;
+            }
             setMatchId(null);
             setOpponent(null);
             setStatus("searching");
             setError("あいてが にげだした！ べつの あいてを さがします。");
-            // 再度待機列に入る処理はバックエンド側で自動的に行われるため、フロントからは送信しない
           }
         },
       );
@@ -218,8 +237,8 @@ export default function BattlePage() {
 
     return () => {
       if (clientRef.current) {
-        // 接続されている場合のみ離脱通知を送る
-        if (clientRef.current.connected) {
+        // 対戦正常終了後の画面遷移では leave を送らない（相手への CANCELLED 誤送信防止）
+        if (clientRef.current.connected && !battleEndedRef.current) {
           clientRef.current.publish({
             destination: "/api/battles/queue/leave",
             body: JSON.stringify({ userId: currentUser.id }),
@@ -272,44 +291,53 @@ export default function BattlePage() {
     }, 1000);
   };
 
-  const handleBattleFinish = async (result: any) => {
+  const handleBattleFinish = async (result: {
+    score: number;
+    accuracy: number;
+    typedChars: number;
+    missCount: number;
+    myHp: number;
+    opponentHp: number;
+    reason: string;
+  }) => {
+    if (isSavingRef.current || !matchId) return;
+    isSavingRef.current = true;
+    battleEndedRef.current = true;
     setStatus("finished");
-    
-    // 勝者の判定
-    let winnerId = null;
+
+    const latestOpponent = opponentStatusRef.current;
+
+    let winnerId: number | null = null;
     if (result.reason === "win_ko") {
       winnerId = currentUser.id;
     } else if (result.reason === "lose_ko") {
-      winnerId = opponent?.id || null;
+      winnerId = opponent?.id ?? null;
     } else if (result.reason === "time_up") {
       if (result.myHp > result.opponentHp) {
         winnerId = currentUser.id;
       } else if (result.myHp < result.opponentHp) {
-        winnerId = opponent?.id || null;
-      } else {
-        // HPが同じ場合はスコアで判定
-        if (result.score > (opponentStatus?.score || 0)) {
-          winnerId = currentUser.id;
-        } else if (result.score < (opponentStatus?.score || 0)) {
-          winnerId = opponent?.id || null;
-        }
+        winnerId = opponent?.id ?? null;
+      } else if (result.score > (latestOpponent?.score ?? 0)) {
+        winnerId = currentUser.id;
+      } else if (result.score < (latestOpponent?.score ?? 0)) {
+        winnerId = opponent?.id ?? null;
       }
     }
 
-    // バックエンドに結果を保存
     try {
       const battleResult = {
+        matchId,
         player1Id: role === "player1" ? currentUser.id : opponent?.id,
         player2Id: role === "player2" ? currentUser.id : opponent?.id,
-        player1Score: role === "player1" ? result.score : (opponentStatus?.score || 0),
-        player2Score: role === "player2" ? result.score : (opponentStatus?.score || 0),
-        player1AccuracyRate: role === "player1" ? result.accuracy : (opponentStatus?.accuracyRate || 0),
-        player2AccuracyRate: role === "player2" ? result.accuracy : (opponentStatus?.accuracyRate || 0),
-        player1TypedChars: role === "player1" ? result.typedChars : (opponentStatus?.typedChars || 0),
-        player1MissCount: role === "player1" ? result.missCount : (opponentStatus?.missCount || 0),
-        player2TypedChars: role === "player2" ? result.typedChars : (opponentStatus?.typedChars || 0),
-        player2MissCount: role === "player2" ? result.missCount : (opponentStatus?.missCount || 0),
-        winnerId: winnerId,
+        player1Score: role === "player1" ? result.score : (latestOpponent?.score ?? 0),
+        player2Score: role === "player2" ? result.score : (latestOpponent?.score ?? 0),
+        player1AccuracyRate: role === "player1" ? result.accuracy : (latestOpponent?.accuracyRate ?? 0),
+        player2AccuracyRate: role === "player2" ? result.accuracy : (latestOpponent?.accuracyRate ?? 0),
+        player1TypedChars: role === "player1" ? result.typedChars : (latestOpponent?.typedChars ?? 0),
+        player1MissCount: role === "player1" ? result.missCount : (latestOpponent?.missCount ?? 0),
+        player2TypedChars: role === "player2" ? result.typedChars : (latestOpponent?.typedChars ?? 0),
+        player2MissCount: role === "player2" ? result.missCount : (latestOpponent?.missCount ?? 0),
+        winnerId,
       };
 
       const res = await fetchWithAuth("/api/battle-results", {
@@ -320,17 +348,17 @@ export default function BattlePage() {
         body: JSON.stringify(battleResult),
       });
 
-      if (res.ok) {
-        const savedResult = await res.json();
-        // 結果画面へ遷移 (対戦結果IDを渡す)
-        router.push(`/result/BattleResult?id=${savedResult.id}`);
-      } else {
+      if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         console.error("Server error response:", errorData);
         throw new Error(`Failed to save result: ${res.status}`);
       }
+
+      // matchId = 対戦ID = BattleResultResponse.id
+      router.push(`/result/BattleResult?id=${matchId}`);
     } catch (err) {
       console.error("Error submitting result:", err);
+      isSavingRef.current = false;
       setError("けっかの ほぞんに しっぱいしました。サーバーの ログを かくにんしてください。");
     }
   };

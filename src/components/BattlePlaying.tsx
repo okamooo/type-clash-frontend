@@ -13,7 +13,15 @@ interface BattlePlayingProps {
   words: MagicWord[];
   client: Client | null;
   opponentStatus: BattleMessage | null;
-  onFinish: (finalResult: any) => void;
+  onFinish: (finalResult: {
+    score: number;
+    accuracy: number;
+    typedChars: number;
+    missCount: number;
+    myHp: number;
+    opponentHp: number;
+    reason: string;
+  }) => void;
 }
 
 const INITIAL_HP = 100;
@@ -28,7 +36,6 @@ export default function BattlePlaying({
   opponentStatus,
   onFinish,
 }: BattlePlayingProps) {
-  // --- ゲーム状態（メモリ管理） ---
   const [myHp, setMyHp] = useState(INITIAL_HP);
   const [opponentHp, setOpponentHp] = useState(INITIAL_HP);
   const [timeLeft, setTimeLeft] = useState(BATTLE_TIME);
@@ -40,73 +47,85 @@ export default function BattlePlaying({
   const [isFinished, setIsFinished] = useState(false);
   const finishedRef = useRef(false);
   const processedMessageIds = useRef<Set<string>>(new Set());
+  const statsRef = useRef({
+    score: 0,
+    typedChars: 0,
+    missCount: 0,
+    myHp: INITIAL_HP,
+    opponentHp: INITIAL_HP,
+  });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentWord = words[currentWordIndex % words.length];
 
-  // --- 終了処理 ---
+  useEffect(() => {
+    statsRef.current = { score, typedChars, missCount, myHp, opponentHp };
+  }, [score, typedChars, missCount, myHp, opponentHp]);
+
+  const calcAccuracy = (typed: number, misses: number) =>
+    typed > 0 ? Math.floor(((typed - misses) / typed) * 100) : 100;
+
   const handleFinish = useCallback((reason: string) => {
     if (finishedRef.current) return;
     finishedRef.current = true;
     setIsFinished(true);
-    
+
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // 最終的な精度計算
-    const accuracy = typedChars > 0 ? Math.floor(((typedChars - missCount) / typedChars) * 100) : 100;
+    const { score: finalScore, typedChars: finalTyped, missCount: finalMiss, myHp: finalMyHp, opponentHp: finalOpponentHp } =
+      statsRef.current;
+    const accuracy = calcAccuracy(finalTyped, finalMiss);
 
-    // 親コンポーネントの状態更新を確実に次フレームに遅らせる
     setTimeout(() => {
       onFinish({
-        score,
+        score: finalScore,
         accuracy,
-        typedChars,
-        missCount,
-        myHp,
-        opponentHp,
+        typedChars: finalTyped,
+        missCount: finalMiss,
+        myHp: finalMyHp,
+        opponentHp: finalOpponentHp,
         reason,
       });
     }, 10);
-  }, [onFinish, score, typedChars, missCount, myHp, opponentHp]);
+  }, [onFinish]);
 
-  // --- 進捗または攻撃を相手に送信する ---
   const sendUpdate = useCallback((damage: number = 0) => {
-    if (client?.connected) {
-      const msgId = damage > 0 ? `${currentUser.id}-${Date.now()}-${Math.random()}` : undefined;
-      const message: BattleMessage = {
-        userId: currentUser.id,
-        matchId: matchId,
-        score: score,
-        accuracyRate: typedChars > 0 ? Math.floor(((typedChars - missCount) / typedChars) * 100) : 100,
-        typedChars: typedChars,
-        missCount: missCount,
-        currentHp: myHp,
-        damage: damage,
-        messageId: msgId,
-        content: myHp <= 0 ? "LOSER" : (damage > 0 ? "ATTACK" : "PLAYING"),
-      };
-      client.publish({
-        destination: `/api/battles/${matchId}/update`,
-        body: JSON.stringify(message),
-      });
-    }
-  }, [client, currentUser.id, matchId, score, typedChars, missCount, myHp]);
+    if (!client?.connected) return;
 
-  // --- 相手からのメッセージを受け取った時の処理 ---
+    const stats = statsRef.current;
+    const msgId = damage > 0 ? `${currentUser.id}-${Date.now()}-${Math.random()}` : undefined;
+    const message: BattleMessage = {
+      userId: currentUser.id,
+      matchId: matchId,
+      score: stats.score,
+      accuracyRate: calcAccuracy(stats.typedChars, stats.missCount),
+      typedChars: stats.typedChars,
+      missCount: stats.missCount,
+      currentHp: stats.myHp,
+      damage: damage,
+      messageId: msgId,
+      content: stats.myHp <= 0 ? "LOSER" : damage > 0 ? "ATTACK" : "PLAYING",
+    };
+    client.publish({
+      destination: `/api/battles/${matchId}/update`,
+      body: JSON.stringify(message),
+    });
+  }, [client, currentUser.id, matchId]);
+
   useEffect(() => {
     if (opponentStatus) {
-      // 相手の現在のスコアやHPの見た目を更新
       setOpponentHp(opponentStatus.currentHp);
+      statsRef.current = { ...statsRef.current, opponentHp: opponentStatus.currentHp };
 
-      // 相手からの攻撃（ダメージ）がある場合、かつ未処理のメッセージの場合のみ自分のHPを減らす
       if (opponentStatus.damage && opponentStatus.damage > 0 && opponentStatus.messageId) {
         if (!processedMessageIds.current.has(opponentStatus.messageId)) {
           processedMessageIds.current.add(opponentStatus.messageId);
           setMyHp((prev) => {
             const nextHp = Math.max(0, prev - (opponentStatus.damage || 0));
-            if (nextHp <= 0 && !isFinished) {
-              // 自分のHPが0になったら負け判定へ
+            statsRef.current = { ...statsRef.current, myHp: nextHp };
+            if (nextHp <= 0 && !finishedRef.current) {
+              sendUpdate(0);
               setTimeout(() => handleFinish("lose_ko"), 0);
             }
             return nextHp;
@@ -114,14 +133,12 @@ export default function BattlePlaying({
         }
       }
 
-      // 相手が「負けました」と言ってきたら、自分の勝利判定へ
       if (opponentStatus.content === "LOSER" && !isFinished) {
         handleFinish("win_ko");
       }
     }
-  }, [opponentStatus, isFinished, handleFinish]);
+  }, [opponentStatus, handleFinish, sendUpdate]);
 
-  // --- タイマー処理 ---
   useEffect(() => {
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
@@ -139,46 +156,56 @@ export default function BattlePlaying({
     };
   }, [handleFinish]);
 
-  // --- タイピング入力判定 ---
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (isFinished) return;
-
-    // アルファベットと記号のみ受け付ける（簡易判定）
+    if (isFinished || finishedRef.current) return;
     if (e.key.length !== 1) return;
 
     const targetChar = currentWord.magicTarget[currentInput.length];
 
     if (e.key === targetChar) {
       const nextInput = currentInput + e.key;
-      setTypedChars((prev) => prev + 1);
 
       if (nextInput === currentWord.magicTarget) {
-        // 単語完成！攻撃！
         const damageAmount = currentWord.magicTarget.length;
-        
-        // 自分の画面上の相手HPを（先行して）減らす
-        setOpponentHp((prev) => Math.max(0, prev - damageAmount));
-        setScore((prev) => prev + (damageAmount * 10));
+
+        statsRef.current = {
+          ...statsRef.current,
+          opponentHp: Math.max(0, statsRef.current.opponentHp - damageAmount),
+          score: statsRef.current.score + damageAmount * 10,
+          typedChars: statsRef.current.typedChars + 1,
+        };
+        setOpponentHp(statsRef.current.opponentHp);
+        setScore(statsRef.current.score);
+        setTypedChars(statsRef.current.typedChars);
         setCurrentInput("");
         setCurrentWordIndex((prev) => prev + 1);
-
-        // 相手にダメージを送る
         sendUpdate(damageAmount);
+
+        if (statsRef.current.opponentHp <= 0) {
+          handleFinish("win_ko");
+        }
       } else {
+        statsRef.current = {
+          ...statsRef.current,
+          typedChars: statsRef.current.typedChars + 1,
+        };
+        setTypedChars(statsRef.current.typedChars);
         setCurrentInput(nextInput);
       }
     } else {
-      // ミス入力
-      setMissCount((prev) => prev + 1);
-      setTypedChars((prev) => prev + 1);
-      // ミス時もステータス（精度）を同期
+      statsRef.current = {
+        ...statsRef.current,
+        missCount: statsRef.current.missCount + 1,
+        typedChars: statsRef.current.typedChars + 1,
+      };
+      setMissCount(statsRef.current.missCount);
+      setTypedChars(statsRef.current.typedChars);
       sendUpdate(0);
     }
   };
 
   return (
     <div className="flex w-full flex-col items-center gap-8" onKeyDown={handleKeyDown} tabIndex={0} autoFocus>
-      {/* ヘッダー情報（残り時間） */}
       <div className="flex w-full justify-between items-center px-4">
         <div className="text-2xl font-bold text-yellow-400">
           TIME: {timeLeft}s
@@ -188,26 +215,23 @@ export default function BattlePlaying({
         </div>
       </div>
 
-      {/* 対戦エリア */}
       <div className="grid grid-cols-2 gap-8 w-full">
-        {/* 自分 */}
         <div className="flex flex-col items-center gap-4">
           <UserAvatar user={currentUser} size="lg" />
           <div className="w-full bg-gray-700 h-6 rounded-full overflow-hidden border-2 border-white">
-            <div 
-              className="bg-green-500 h-full transition-all duration-300" 
+            <div
+              className="bg-green-500 h-full transition-all duration-300"
               style={{ width: `${(myHp / INITIAL_HP) * 100}%` }}
             />
           </div>
           <p className="text-white font-bold">HP: {myHp} / {INITIAL_HP}</p>
         </div>
 
-        {/* 相手 */}
         <div className="flex flex-col items-center gap-4">
           <UserAvatar user={opponent} size="lg" />
           <div className="w-full bg-gray-700 h-6 rounded-full overflow-hidden border-2 border-white">
-            <div 
-              className="bg-red-500 h-full transition-all duration-300" 
+            <div
+              className="bg-red-500 h-full transition-all duration-300"
               style={{ width: `${(opponentHp / INITIAL_HP) * 100}%` }}
             />
           </div>
@@ -215,7 +239,6 @@ export default function BattlePlaying({
         </div>
       </div>
 
-      {/* タイピングエリア */}
       <MessagePanel className="w-full min-h-[160px] flex flex-col items-center justify-center gap-2">
         <p className="text-3xl text-yellow-300 font-bold">{currentWord.magicText}</p>
         <p className="text-xl text-gray-400">{currentWord.magicReading}</p>
