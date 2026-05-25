@@ -30,7 +30,7 @@ export interface BattleMessage {
 
 /**
  * 対戦結果（ユーザー指定の絶対的な定義）
- * id = 対戦ID（matchId）。マッチング成立時に DB 上の主キーとして確定する。
+ * id = 対戦ID（matchId）。両者が「たたかう」を押した時点で DB 上の主キーとして確定する。
  */
 export type BattleResultResponse = {
   id: number;

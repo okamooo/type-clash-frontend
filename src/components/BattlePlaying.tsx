@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { MagicWord, BattleMessage, OpponentInfo } from "@/types/battle";
 import { Client } from "@stomp/stompjs";
 import UserAvatar from "@/components/UserAvatar";
@@ -13,6 +13,7 @@ interface BattlePlayingProps {
   words: MagicWord[];
   client: Client | null;
   opponentStatus: BattleMessage | null;
+  battleEndsAt: number;
   onFinish: (finalResult: {
     score: number;
     accuracy: number;
@@ -24,18 +25,23 @@ interface BattlePlayingProps {
   }) => void;
 }
 
+export type BattlePlayingHandle = {
+  finishWithReason: (reason: string) => void;
+};
+
 const INITIAL_HP = 100;
 const BATTLE_TIME = 60;
 
-export default function BattlePlaying({
+const BattlePlaying = forwardRef<BattlePlayingHandle, BattlePlayingProps>(function BattlePlaying({
   matchId,
   currentUser,
   opponent,
   words,
   client,
   opponentStatus,
+  battleEndsAt,
   onFinish,
-}: BattlePlayingProps) {
+}, ref) {
   const [myHp, setMyHp] = useState(INITIAL_HP);
   const [opponentHp, setOpponentHp] = useState(INITIAL_HP);
   const [timeLeft, setTimeLeft] = useState(BATTLE_TIME);
@@ -90,6 +96,10 @@ export default function BattlePlaying({
     }, 10);
   }, [onFinish]);
 
+  useImperativeHandle(ref, () => ({
+    finishWithReason: (reason: string) => handleFinish(reason),
+  }), [handleFinish]);
+
   const sendUpdate = useCallback((damage: number = 0) => {
     if (!client?.connected) return;
 
@@ -140,21 +150,22 @@ export default function BattlePlaying({
   }, [opponentStatus, handleFinish, sendUpdate]);
 
   useEffect(() => {
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current!);
-          handleFinish("time_up");
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    const tickTimer = () => {
+      const remainingSeconds = Math.max(0, Math.ceil((battleEndsAt - Date.now()) / 1000));
+      setTimeLeft(remainingSeconds);
+      if (remainingSeconds <= 0 && !finishedRef.current) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        handleFinish("time_up");
+      }
+    };
+
+    tickTimer();
+    timerRef.current = setInterval(tickTimer, 200);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [handleFinish]);
+  }, [battleEndsAt, handleFinish]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (isFinished || finishedRef.current) return;
@@ -253,4 +264,6 @@ export default function BattlePlaying({
       </p>
     </div>
   );
-}
+});
+
+export default BattlePlaying;

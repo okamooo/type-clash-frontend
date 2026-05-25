@@ -11,7 +11,12 @@ import BackButton from "@/components/BackButton";
 import UserAvatar from "@/components/UserAvatar";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
 import { MagicWord, BattleStatus, OpponentInfo, BattleMessage } from "@/types/battle";
-import BattlePlaying from "@/components/BattlePlaying";
+import BattlePlaying, { BattlePlayingHandle } from "@/components/BattlePlaying";
+
+const BATTLE_COUNTDOWN_SECONDS = 3;
+const BATTLE_TIME_SECONDS = 60;
+const API_BASE_URL = "http://localhost:8080";
+const INITIAL_HP = 100;
 
 export default function BattlePage() {
   const router = useRouter();
@@ -23,7 +28,9 @@ export default function BattlePage() {
   const [words, setWords] = useState<MagicWord[]>([]);
   const [opponentStatus, setOpponentStatus] = useState<BattleMessage | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const [countdown, setCountdown] = useState(3);
+  const [countdown, setCountdown] = useState(BATTLE_COUNTDOWN_SECONDS);
+  const [battleEndsAt, setBattleEndsAt] = useState<number | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [isMessageComplete, setIsMessageComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -35,6 +42,22 @@ export default function BattlePage() {
   const isSavingRef = useRef(false);
   const battleEndedRef = useRef(false);
   const statusRef = useRef<BattleStatus>("searching");
+  const matchIdRef = useRef<number | null>(null);
+  const battlePlayingRef = useRef<BattlePlayingHandle>(null);
+  const handleBattleFinishRef = useRef<((result: {
+    score: number;
+    accuracy: number;
+    typedChars: number;
+    missCount: number;
+    myHp: number;
+    opponentHp: number;
+    reason: string;
+  }) => Promise<void>) | null>(null);
+  const handleOpponentLeftRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    matchIdRef.current = matchId;
+  }, [matchId]);
 
   useEffect(() => {
     opponentStatusRef.current = opponentStatus;
@@ -134,12 +157,115 @@ export default function BattlePage() {
       }
     };
 
+    const publishLeaveOrForfeit = (userId: number) => {
+      if (battleEndedRef.current || !clientRef.current?.connected) return;
+      const currentStatus = statusRef.current;
+      const mId = matchIdRef.current;
+      if ((currentStatus === "playing" || currentStatus === "ready") && mId != null) {
+        clientRef.current.publish({
+          destination: "/api/battles/forfeit",
+          body: JSON.stringify({ userId, matchId: mId }),
+        });
+      } else {
+        clientRef.current.publish({
+          destination: "/api/battles/queue/leave",
+          body: JSON.stringify({ userId }),
+        });
+      }
+    };
+
+    const handleOpponentLeft = () => {
+      if (battleEndedRef.current || isSavingRef.current) return;
+
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+
+      if (statusRef.current === "playing") {
+        battlePlayingRef.current?.finishWithReason("opponent_left");
+        return;
+      }
+
+      if (statusRef.current === "ready") {
+        handleBattleFinishRef.current?.({
+          score: 0,
+          accuracy: 100,
+          typedChars: 0,
+          missCount: 0,
+          myHp: INITIAL_HP,
+          opponentHp: INITIAL_HP,
+          reason: "opponent_left",
+        });
+      }
+    };
+
+    handleOpponentLeftRef.current = handleOpponentLeft;
+
     const handleMatchError = (message: string) => {
       setMatchId(null);
       setOpponent(null);
+      setRole(null);
       setWords([]);
+      setIsReady(false);
+      battleSubscriptionRef.current?.unsubscribe();
+      battleSubscriptionRef.current = null;
       setStatus("searching");
       setError(message);
+    };
+
+    const beginCountdown = (endsAt: number) => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+
+      setStatus("ready");
+      const playingStartsAt = endsAt - BATTLE_TIME_SECONDS * 1000;
+
+      const tickCountdown = () => {
+        const remainingMs = playingStartsAt - Date.now();
+        if (remainingMs <= 0) {
+          setCountdown(0);
+          setStatus("playing");
+          if (countdownIntervalRef.current) {
+            clearInterval(countdownIntervalRef.current);
+            countdownIntervalRef.current = null;
+          }
+          return;
+        }
+        setCountdown(Math.max(1, Math.ceil(remainingMs / 1000)));
+      };
+
+      tickCountdown();
+      countdownIntervalRef.current = setInterval(tickCountdown, 200);
+    };
+
+    const subscribeToBattle = (mId: number) => {
+      battleSubscriptionRef.current?.unsubscribe();
+      battleSubscriptionRef.current = client.subscribe(
+        `/topic/battle/${mId}`,
+        (message) => {
+          const battleData = JSON.parse(message.body);
+          if (battleData.userId !== currentUser.id) {
+            setOpponentStatus(battleData);
+          }
+        },
+      );
+    };
+
+    const handleStartBattle = (data: { matchId?: number; battleEndsAt?: number }) => {
+      const mId = data.matchId;
+      if (mId == null) return;
+
+      const endsAt =
+        typeof data.battleEndsAt === "number"
+          ? data.battleEndsAt
+          : Date.now() + (BATTLE_COUNTDOWN_SECONDS + BATTLE_TIME_SECONDS) * 1000;
+
+      setMatchId(mId);
+      setBattleEndsAt(endsAt);
+      subscribeToBattle(mId);
+      beginCountdown(endsAt);
     };
 
     client.onConnect = () => {
@@ -159,34 +285,27 @@ export default function BattlePage() {
           }
 
           if (data.status === "MATCHED") {
-            const mId = data.matchId;
-            setMatchId(mId);
             setRole(data.role);
+            setMatchId(null);
+            setIsReady(false);
+            setBattleEndsAt(null);
+            battleSubscriptionRef.current?.unsubscribe();
+            battleSubscriptionRef.current = null;
             fetchOpponentInfo(data.opponentId);
             fetchMagicWords();
-            
-            // 対戦中の進捗購読を開始
-            battleSubscriptionRef.current = client.subscribe(
-              `/topic/battle/${mId}`,
-              (message) => {
-                const battleData = JSON.parse(message.body);
-
-                // サーバーからの対戦開始合図を受け取った場合
-                if (battleData.status === "START_BATTLE") {
-                  startSynchronizedCountdown();
-                  return;
-                }
-
-                // 自分以外のデータ（相手のデータ）であれば反映する
-                if (battleData.userId !== currentUser.id) {
-                  setOpponentStatus(battleData);
-                }
-              }
-            );
-
             setStatus("found");
-            setIsMessageComplete(false); // メッセージ演出をリセット
+            setIsMessageComplete(false);
             setError(null);
+          } else if (data.status === "START_BATTLE") {
+            handleStartBattle(data);
+          } else if (data.status === "OPPONENT_LEFT") {
+            if (battleEndedRef.current || isSavingRef.current) return;
+            if (data.matchId != null) {
+              setMatchId(data.matchId);
+              matchIdRef.current = data.matchId;
+            }
+            setError("あいてが 切断しました！ 不戦勝です。");
+            handleOpponentLeftRef.current();
           } else if (data.status === "CANCELLED") {
             // 対戦中・終了処理中の leave は無視（結果画面遷移時の queue/leave 対策）
             if (
@@ -199,6 +318,11 @@ export default function BattlePage() {
             }
             setMatchId(null);
             setOpponent(null);
+            setRole(null);
+            setIsReady(false);
+            setBattleEndsAt(null);
+            battleSubscriptionRef.current?.unsubscribe();
+            battleSubscriptionRef.current = null;
             setStatus("searching");
             setError("あいてが にげだした！ べつの あいてを さがします。");
           }
@@ -236,13 +360,12 @@ export default function BattlePage() {
     clientRef.current = client;
 
     return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
       if (clientRef.current) {
-        // 対戦正常終了後の画面遷移では leave を送らない（相手への CANCELLED 誤送信防止）
         if (clientRef.current.connected && !battleEndedRef.current) {
-          clientRef.current.publish({
-            destination: "/api/battles/queue/leave",
-            body: JSON.stringify({ userId: currentUser.id }),
-          });
+          publishLeaveOrForfeit(currentUser.id);
         }
         clientRef.current.deactivate();
       }
@@ -256,39 +379,33 @@ export default function BattlePage() {
     if (currentUser.id === 0) return;
 
     const handleUnload = () => {
-      const data = JSON.stringify({ userId: currentUser.id });
-      const blob = new Blob([data], { type: "application/json" });
-      navigator.sendBeacon("/api/battles/queue/leave", blob);
+      if (battleEndedRef.current) return;
+      const userId = currentUser.id;
+      const currentStatus = statusRef.current;
+      const mId = matchIdRef.current;
+      const isForfeit =
+        (currentStatus === "playing" || currentStatus === "ready") && mId != null;
+      const payload = isForfeit
+        ? JSON.stringify({ userId, matchId: mId })
+        : JSON.stringify({ userId });
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = isForfeit
+        ? `${API_BASE_URL}/api/battles/forfeit`
+        : `${API_BASE_URL}/api/battles/queue/leave`;
+      navigator.sendBeacon(url, blob);
     };
     window.addEventListener("beforeunload", handleUnload);
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, [currentUser.id]);
 
   const handleFight = () => {
-    if (clientRef.current && clientRef.current.connected && matchId) {
+    if (clientRef.current?.connected && opponent) {
       setIsReady(true);
-      // サーバーに準備完了を送る
       clientRef.current.publish({
         destination: "/api/battles/ready",
-        body: JSON.stringify({ matchId, userId: currentUser.id }),
+        body: JSON.stringify({ userId: currentUser.id }),
       });
     }
-  };
-
-  const startSynchronizedCountdown = () => {
-    setStatus("ready");
-    // 3秒間のカウントダウン開始
-    let count = 3;
-    setCountdown(count);
-    const interval = setInterval(() => {
-      count -= 1;
-      if (count <= 0) {
-        clearInterval(interval);
-        setStatus("playing");
-      } else {
-        setCountdown(count);
-      }
-    }, 1000);
   };
 
   const handleBattleFinish = async (result: {
@@ -322,6 +439,8 @@ export default function BattlePage() {
       } else if (result.score < (latestOpponent?.score ?? 0)) {
         winnerId = opponent?.id ?? null;
       }
+    } else if (result.reason === "opponent_left") {
+      winnerId = currentUser.id;
     }
 
     try {
@@ -362,6 +481,10 @@ export default function BattlePage() {
       setError("けっかの ほぞんに しっぱいしました。サーバーの ログを かくにんしてください。");
     }
   };
+
+  useEffect(() => {
+    handleBattleFinishRef.current = handleBattleFinish;
+  });
 
   const handleRun = () => {
     // 待機列から抜けてメニュー画面へ戻る（ループ防止の対策1）
@@ -463,14 +586,16 @@ export default function BattlePage() {
           )}
 
           {/* --- ステータス4: 対戦中 --- */}
-          {status === "playing" && matchId && opponent && (
+          {status === "playing" && matchId && opponent && battleEndsAt !== null && (
             <BattlePlaying
+              ref={battlePlayingRef}
               matchId={matchId}
               currentUser={currentUser}
               opponent={opponent}
               words={words}
               client={clientRef.current}
               opponentStatus={opponentStatus}
+              battleEndsAt={battleEndsAt}
               onFinish={handleBattleFinish}
             />
           )}
