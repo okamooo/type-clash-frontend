@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 
 import UserAvatar from "@/components/UserAvatar";
 import WindowPanel from "@/components/WindowPanel";
+import { useCurrentUser } from "@/contexts/CurrentUserContext";
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
 const MAX_NAME_LENGTH = 50;
-const API_BASE = "http://localhost:8080";
 
 const editIcon = (
   <svg
@@ -50,11 +51,14 @@ function PlayerNameModal(props: PlayerNameModalProps) {
   }, []);
 
   const handleSave = async () => {
+    const trimmedValue = value.trim();
+    if (!trimmedValue) return;
+
     setIsSubmitting(true);
     setErrorMessage("");
 
     try {
-      await props.onSave(value.trim());
+      await props.onSave(trimmedValue);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -154,6 +158,7 @@ type User = {
  */
 export default function AccountSettingsPage() {
   const router = useRouter();
+  const { updateCurrentUser } = useCurrentUser();
   const [user, setUser] = useState<User | null>(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -164,9 +169,7 @@ export default function AccountSettingsPage() {
       if (!userId) return;
 
       try {
-        const res = await fetch(`${API_BASE}/api/users/${userId}`, {
-          credentials: "include",
-        });
+        const res = await fetchWithAuth(`/api/users/${userId}`);
 
         if (!res.ok) {
           throw new Error();
@@ -175,6 +178,7 @@ export default function AccountSettingsPage() {
         const data = await res.json();
 
         setUser(data);
+        updateCurrentUser(data);
 
       } catch {
         console.error("ユーザー情報の取得に失敗しました");
@@ -182,7 +186,7 @@ export default function AccountSettingsPage() {
     };
 
     fetchUser();
-  }, []);
+  }, [updateCurrentUser]);
 
   /**
    * プレイヤー名変更APIを呼び出す
@@ -200,10 +204,9 @@ export default function AccountSettingsPage() {
     }, 5000);
 
     try {
-      const res = await fetch(`${API_BASE}/api/users/${user.id}`, {
+      const res = await fetchWithAuth(`/api/users/${user.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ name: newName }),
         signal: controller.signal,
       });
@@ -218,6 +221,7 @@ export default function AccountSettingsPage() {
         if (!prev) return prev;
         return { ...prev, name: data.name };
       });
+      updateCurrentUser({ name: data.name });
 
       setShowModal(false);
     } catch (error) {
