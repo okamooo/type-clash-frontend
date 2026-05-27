@@ -11,7 +11,19 @@ import BackButton from "@/components/BackButton";
 import UserAvatar from "@/components/UserAvatar";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
+const API_BASE_URL = "http://localhost:8080";
+
 type BattleStatus = "searching" | "found" | "ready" | "playing" | "finished";
+
+const getLeaveDestination = (currentStatus: BattleStatus) =>
+  currentStatus === "found" || currentStatus === "ready" || currentStatus === "playing"
+    ? "/api/battles/match/leave"
+    : "/api/battles/queue/leave";
+
+const getLeaveRestUrl = (currentStatus: BattleStatus) =>
+  currentStatus === "searching"
+    ? `${API_BASE_URL}/api/battles/queue/leave`
+    : `${API_BASE_URL}/api/battles/match/leave`;
 
 interface OpponentInfo {
   id: number;
@@ -23,7 +35,7 @@ export default function BattlePage() {
   const router = useRouter();
   const { currentUser, updateCurrentUser, canEnterBattle, setCanEnterBattle } = useCurrentUser();
   const [status, setStatus] = useState<BattleStatus>("searching");
-  const [matchId, setMatchId] = useState<number | null>(null);
+  const [matchId, setMatchId] = useState<string | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
   const [isMessageComplete, setIsMessageComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +43,11 @@ export default function BattlePage() {
 
   const clientRef = useRef<Client | null>(null);
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const statusRef = useRef<BattleStatus>("searching");
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   // --- URL直叩き防止チェック ---
   useEffect(() => {
@@ -100,7 +117,7 @@ export default function BattlePage() {
         if (client.connected) {
           client.publish({
             destination: "/api/battles/queue/join",
-            body: JSON.stringify({ userId: currentUser.id }),
+            body: "{}",
           });
         }
         setMatchId(null);
@@ -132,7 +149,7 @@ export default function BattlePage() {
             setStatus("found");
             setIsMessageComplete(false); // メッセージ演出をリセット
             setError(null);
-          } else if (data.status === "CANCELLED") {
+          } else if (data.status === "OPPONENT_LEFT" || data.status === "CANCELLED") {
             // 相手が離脱した場合、検索中に戻す
             setMatchId(null);
             setOpponent(null);
@@ -146,7 +163,7 @@ export default function BattlePage() {
       // マッチング待機列に参加
       client.publish({
         destination: "/api/battles/queue/join",
-        body: JSON.stringify({ userId: currentUser.id }),
+        body: "{}",
       });
     };
 
@@ -173,11 +190,10 @@ export default function BattlePage() {
 
     return () => {
       if (clientRef.current) {
-        // 接続されている場合のみ離脱通知を送る
         if (clientRef.current.connected) {
           clientRef.current.publish({
-            destination: "/api/battles/queue/leave",
-            body: JSON.stringify({ userId: currentUser.id }),
+            destination: getLeaveDestination(statusRef.current),
+            body: "{}",
           });
         }
         clientRef.current.deactivate();
@@ -191,10 +207,11 @@ export default function BattlePage() {
     if (currentUser.id === 0) return;
 
     const handleUnload = () => {
-      const data = JSON.stringify({ userId: currentUser.id });
-      const blob = new Blob([data], { type: "application/json" });
-      // Next.jsのオリジンではなくバックエンドのオリジンへ明示的に送信する
-      navigator.sendBeacon("http://localhost:8080/api/battles/queue/leave", blob);
+      const currentStatus = statusRef.current;
+      if (currentStatus === "finished") return;
+
+      const blob = new Blob(["{}"], { type: "application/json" });
+      navigator.sendBeacon(getLeaveRestUrl(currentStatus), blob);
     };
     window.addEventListener("beforeunload", handleUnload);
     return () => window.removeEventListener("beforeunload", handleUnload);
