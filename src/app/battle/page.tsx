@@ -50,34 +50,26 @@ export default function BattlePage() {
   // --- 0. localStorage からユーザー情報を同期 ---
   useEffect(() => {
     const userId = localStorage.getItem("userId");
-    const userName = localStorage.getItem("userName");
-    
-    if (userId && userId !== "0" && userId !== String(currentUser.id)) {
-      // localStorage の情報で一旦更新
-      updateCurrentUser({
-        id: Number(userId),
-        name: userName ?? currentUser.name,
-      });
 
-      // バックエンドから ID, 名前, アイコンのみを取得して反映
-      const syncUser = async () => {
-        try {
-          const res = await fetchWithAuth(`/api/users/${userId}`);
-          if (res.ok) {
-            const data = await res.json();
-            updateCurrentUser({
-              id: data.id,
-              name: data.name,
-              iconImage: data.iconImage,
-            });
-          }
-        } catch (err) {
-          console.error("Failed to sync user info:", err);
+    if (!userId || userId === "0" || userId === String(currentUser.id)) return;
+
+    const syncUser = async () => {
+      try {
+        const res = await fetchWithAuth(`/api/users/${userId}`);
+        if (res.ok) {
+          const data = await res.json();
+          updateCurrentUser({
+            id: data.id,
+            name: data.name,
+            iconImage: data.iconImage,
+          });
         }
-      };
+      } catch (err) {
+        console.error("Failed to sync user info:", err);
+      }
+    };
 
-      syncUser();
-    }
+    syncUser();
   }, [currentUser.id, updateCurrentUser]);
 
   // --- 1. WebSocket 接続とマッチング処理 ---
@@ -217,13 +209,6 @@ export default function BattlePage() {
   };
 
   const handleRun = () => {
-    // 待機列から抜けてメニュー画面へ戻る（ループ防止の対策1）
-    if (clientRef.current && clientRef.current.connected) {
-      clientRef.current.publish({
-        destination: "/api/battles/queue/leave",
-        body: JSON.stringify({ userId: currentUser.id }),
-      });
-    }
     router.push("/home");
   };
 

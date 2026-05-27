@@ -72,6 +72,7 @@ export default function HomePage() {
                         onMouseDown={() => enableBattleEntry(child.href)}
                         // タッチデバイスへの配慮
                         onTouchStart={() => enableBattleEntry(child.href)}
+                        onClick={() => enableBattleEntry(child.href)}
                       >
                         <MenuItem>{child.label}</MenuItem>
                       </Link>
@@ -87,6 +88,7 @@ export default function HomePage() {
                 href={item.href}
                 onMouseDown={() => enableBattleEntry(item.href)}
                 onTouchStart={() => enableBattleEntry(item.href)}
+                onClick={() => enableBattleEntry(item.href)}
               >
                 <MenuItem showCursor>{item.label}</MenuItem>
               </Link>
