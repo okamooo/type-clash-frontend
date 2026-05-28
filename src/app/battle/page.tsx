@@ -16,7 +16,9 @@ const API_BASE_URL = "http://localhost:8080";
 type BattleStatus = "searching" | "found" | "ready" | "playing" | "finished";
 
 const getLeaveDestination = (currentStatus: BattleStatus) =>
-  currentStatus === "found" || currentStatus === "ready" || currentStatus === "playing"
+  currentStatus === "found" ||
+  currentStatus === "ready" ||
+  currentStatus === "playing"
     ? "/api/battles/match/leave"
     : "/api/battles/queue/leave";
 
@@ -33,7 +35,8 @@ interface OpponentInfo {
 
 export default function BattlePage() {
   const router = useRouter();
-  const { currentUser, updateCurrentUser, canEnterBattle, setCanEnterBattle } = useCurrentUser();
+  const { currentUser, updateCurrentUser, canEnterBattle, setCanEnterBattle } =
+    useCurrentUser();
   const [status, setStatus] = useState<BattleStatus>("searching");
   const [matchId, setMatchId] = useState<string | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
@@ -123,7 +126,9 @@ export default function BattlePage() {
         setMatchId(null);
         setOpponent(null);
         setStatus("searching");
-        setError("あいての じょうほうしゅとくに しっぱいしました。さいど マッチングします。");
+        setError(
+          "あいての じょうほうしゅとくに しっぱいしました。さいど マッチングします。",
+        );
       }
     };
 
@@ -138,7 +143,7 @@ export default function BattlePage() {
           let data;
           try {
             data = JSON.parse(message.body);
-          } catch (e) {
+          } catch {
             console.error("Invalid message format:", message.body);
             return;
           }
@@ -149,7 +154,10 @@ export default function BattlePage() {
             setStatus("found");
             setIsMessageComplete(false); // メッセージ演出をリセット
             setError(null);
-          } else if (data.status === "OPPONENT_LEFT" || data.status === "CANCELLED") {
+          } else if (
+            data.status === "OPPONENT_LEFT" ||
+            data.status === "CANCELLED"
+          ) {
             // 相手が離脱した場合、検索中に戻す
             setMatchId(null);
             setOpponent(null);
@@ -244,13 +252,21 @@ export default function BattlePage() {
             <div className="flex flex-col items-center py-16">
               {/* グルグル（スピンアニメーション） */}
               <div className="relative mb-12">
-                <div className={`h-24 w-24 animate-spin rounded-full border-b-4 border-t-4 ${isConnected ? "border-yellow-400" : "border-gray-500"}`}></div>
+                <div
+                  className={`h-24 w-24 animate-spin rounded-full border-b-4 border-t-4 ${isConnected ? "border-yellow-400" : "border-gray-500"}`}
+                ></div>
                 <div className="absolute inset-0 flex items-center justify-center text-4xl">
                   {isConnected ? "⚔️" : "☁️"}
                 </div>
               </div>
               <p className="text-2xl text-white">
-                <TypewriterText text={isConnected ? "対戦相手を さがしています..." : "サーバーに せつぞくちゅう..."} />
+                <TypewriterText
+                  text={
+                    isConnected
+                      ? "対戦相手を さがしています..."
+                      : "サーバーに せつぞくちゅう..."
+                  }
+                />
               </p>
               <div className="mt-12">
                 <BackButton />
