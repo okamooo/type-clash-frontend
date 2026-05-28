@@ -119,7 +119,7 @@ function PlayerNameModal(props: PlayerNameModalProps) {
           />
 
           <p className="text-xs text-white/50">
-            {MAX_NAME_LENGTH}文字まで入力できます（スペースは使用できません）
+            {MAX_NAME_LENGTH}文字まで入力できます
           </p>
 
           <p
