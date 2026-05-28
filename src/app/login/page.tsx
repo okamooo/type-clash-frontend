@@ -165,7 +165,9 @@ function LoginForm() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
-                  aria-label={showPassword ? "パスワードを隠す" : "パスワードを表示する"}
+                  aria-label={
+                    showPassword ? "パスワードを隠す" : "パスワードを表示する"
+                  }
                 >
                   <EyeIcon isHidden={!showPassword} />
                 </button>
@@ -199,7 +201,7 @@ function LoginForm() {
           </form>
           <Link href="/" className="mt-6 self-start">
             <span className="text-lg transition-colors hover:text-yellow-200">
-                ◀ トップページへ
+              ◀ トップページへ
             </span>
           </Link>
         </WindowPanel>
