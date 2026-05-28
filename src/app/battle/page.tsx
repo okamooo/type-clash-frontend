@@ -54,6 +54,7 @@ export default function BattlePage() {
   const [isMessageComplete, setIsMessageComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [stompClient, setStompClient] = useState<Client | null>(null);
 
   const clientRef = useRef<Client | null>(null);
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
@@ -284,6 +285,7 @@ export default function BattlePage() {
     };
 
     client.onConnect = () => {
+      setStompClient(client);
       setIsConnected(true);
       setError(null);
 
@@ -356,6 +358,7 @@ export default function BattlePage() {
 
     client.onDisconnect = () => {
       console.log("Disconnected from WebSocket");
+      setStompClient(null);
       setIsConnected(false);
       setStatus((currentStatus) => {
         if (currentStatus === "searching" || currentStatus === "found") {
@@ -378,6 +381,7 @@ export default function BattlePage() {
         }
         clientRef.current.deactivate();
       }
+      setStompClient(null);
       subscriptionRef.current?.unsubscribe();
       battleSubscriptionRef.current?.unsubscribe();
     };
@@ -484,12 +488,6 @@ export default function BattlePage() {
   });
 
   const handleRun = () => {
-    if (clientRef.current?.connected) {
-      clientRef.current.publish({
-        destination: "/api/battles/match/leave",
-        body: "{}",
-      });
-    }
     router.push("/home");
   };
 
@@ -581,7 +579,7 @@ export default function BattlePage() {
               currentUser={currentUser}
               opponent={opponent}
               words={words}
-              client={clientRef.current}
+              client={stompClient}
               opponentStatus={opponentStatus}
               battleEndsAt={battleEndsAt}
               onFinish={handleBattleFinish}
