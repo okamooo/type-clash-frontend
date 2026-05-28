@@ -18,34 +18,31 @@ const BATTLE_TIME_SECONDS = 60;
 const API_BASE_URL = "http://localhost:8080";
 const INITIAL_HP = 100;
 
-const API_BASE_URL = "http://localhost:8080";
+const getLeaveDestination = (currentStatus: BattleStatus) => {
+  if (currentStatus === "ready" || currentStatus === "playing") {
+    return "/api/battles/forfeit";
+  }
+  if (currentStatus === "found") {
+    return "/api/battles/match/leave";
+  }
+  return "/api/battles/queue/leave";
+};
 
-type BattleStatus = "searching" | "found" | "ready" | "playing" | "finished";
-
-const getLeaveDestination = (currentStatus: BattleStatus) =>
-  currentStatus === "found" ||
-  currentStatus === "ready" ||
-  currentStatus === "playing"
-    ? "/api/battles/match/leave"
-    : "/api/battles/queue/leave";
-
-const getLeaveRestUrl = (currentStatus: BattleStatus) =>
-  currentStatus === "searching"
-    ? `${API_BASE_URL}/api/battles/queue/leave`
-    : `${API_BASE_URL}/api/battles/match/leave`;
-
-interface OpponentInfo {
-  id: number;
-  name: string;
-  iconImage: string | null;
-}
+const getLeaveRestUrl = (currentStatus: BattleStatus) => {
+  if (currentStatus === "ready" || currentStatus === "playing") {
+    return `${API_BASE_URL}/api/battles/forfeit`;
+  }
+  if (currentStatus === "found") {
+    return `${API_BASE_URL}/api/battles/match/leave`;
+  }
+  return `${API_BASE_URL}/api/battles/queue/leave`;
+};
 
 export default function BattlePage() {
   const router = useRouter();
-  const { currentUser, updateCurrentUser, canEnterBattle, setCanEnterBattle } =
-    useCurrentUser();
+  const { currentUser, updateCurrentUser, canEnterBattle, setCanEnterBattle } = useCurrentUser();
   const [status, setStatus] = useState<BattleStatus>("searching");
-  const [matchId, setMatchId] = useState<string | null>(null);
+  const [matchId, setMatchId] = useState<number | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
   const [role, setRole] = useState<"player1" | "player2" | null>(null);
   const [words, setWords] = useState<MagicWord[]>([]);
@@ -89,57 +86,53 @@ export default function BattlePage() {
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
-  const statusRef = useRef<BattleStatus>("searching");
-
-  useEffect(() => {
-    statusRef.current = status;
-  }, [status]);
 
   // --- URL直叩き防止チェック ---
   useEffect(() => {
-    // コンテキストのフラグが立っていない場合はホーム画面へリダイレクト
     if (!canEnterBattle) {
       router.replace("/home");
     }
-  }, []); // 最初の一回（マウント時）だけチェック
+  }, []);
 
-  // --- 画面を離れる時にフラグを戻しておく ---
   useEffect(() => {
     return () => {
       setCanEnterBattle(false);
     };
   }, [setCanEnterBattle]);
 
-  // --- 0. localStorage からユーザー情報を同期 ---
   useEffect(() => {
     const userId = localStorage.getItem("userId");
+    const userName = localStorage.getItem("userName");
 
-    if (!userId || userId === "0" || userId === String(currentUser.id)) return;
+    if (userId && userId !== "0" && userId !== String(currentUser.id)) {
+      updateCurrentUser({
+        id: Number(userId),
+        name: userName ?? currentUser.name,
+      });
 
-    const syncUser = async () => {
+      const syncUser = async () => {
         if (!userId || userId === "0") return;
-      try {
-        const res = await fetchWithAuth(`/api/users/${userId}`);
-        if (res.ok) {
-          const data = await res.json();
-          updateCurrentUser({
-            id: data.id,
-            name: data.name,
-            iconImage: data.iconImage,
-          });
+        try {
+          const res = await fetchWithAuth(`/api/users/${userId}`);
+          if (res.ok) {
+            const data = await res.json();
+            updateCurrentUser({
+              id: data.id,
+              name: data.name,
+              iconImage: data.iconImage,
+            });
+          }
+        } catch (err) {
+          console.error("Failed to sync user info:", err);
         }
-      } catch (err) {
-        console.error("Failed to sync user info:", err);
-      }
-    };
+      };
 
-    syncUser();
-  }, [currentUser.id, updateCurrentUser]);
+      syncUser();
+    }
+  }, [currentUser.id, currentUser.name, updateCurrentUser]);
 
-  // --- 1. WebSocket 接続とマッチング処理 ---
   useEffect(() => {
-    // ユーザーIDが確定するまで接続を待機、または既に接続が開始されている場合は何もしない
-    if (currentUser.id === 0 || clientRef.current?.active) return;
+    if (currentUser.id === 0) return;
 
     const client = new Client({
       brokerURL: "ws://localhost:8080/ws-battle",
@@ -160,21 +153,6 @@ export default function BattlePage() {
         });
       } catch (err) {
         console.error("Failed to fetch opponent info:", err);
-        // マッチをキャンセルし、バックエンドに再参加を明示的に通知してから検索画面に戻す
-        if (client.connected) {
-          client.publish({
-            destination: "/api/battles/queue/join",
-            body: "{}",
-          });
-        }
-        setMatchId(null);
-        setOpponent(null);
-        setStatus("searching");
-        setError(
-          "あいての じょうほうしゅとくに しっぱいしました。さいど マッチングします。",
-        );
-      }
-        // マッチをなかったことにして検索に戻す
         handleMatchError("あいての じょうほうしゅとくに しっぱいしました。さいど マッチングします。");
       }
     };
@@ -191,21 +169,12 @@ export default function BattlePage() {
       }
     };
 
-    const publishLeaveOrForfeit = (userId: number) => {
+    const publishLeave = () => {
       if (battleEndedRef.current || !clientRef.current?.connected) return;
-      const currentStatus = statusRef.current;
-      const mId = matchIdRef.current;
-      if ((currentStatus === "playing" || currentStatus === "ready") && mId != null) {
-        clientRef.current.publish({
-          destination: "/api/battles/forfeit",
-          body: JSON.stringify({ userId, matchId: mId }),
-        });
-      } else {
-        clientRef.current.publish({
-          destination: "/api/battles/queue/leave",
-          body: JSON.stringify({ userId }),
-        });
-      }
+      clientRef.current.publish({
+        destination: getLeaveDestination(statusRef.current),
+        body: "{}",
+      });
     };
 
     const handleOpponentLeft = () => {
@@ -242,6 +211,18 @@ export default function BattlePage() {
       setRole(null);
       setWords([]);
       setIsReady(false);
+      battleSubscriptionRef.current?.unsubscribe();
+      battleSubscriptionRef.current = null;
+      setStatus("searching");
+      setError(message);
+    };
+
+    const resetToSearching = (message: string) => {
+      setMatchId(null);
+      setOpponent(null);
+      setRole(null);
+      setIsReady(false);
+      setBattleEndsAt(null);
       battleSubscriptionRef.current?.unsubscribe();
       battleSubscriptionRef.current = null;
       setStatus("searching");
@@ -306,7 +287,6 @@ export default function BattlePage() {
       setIsConnected(true);
       setError(null);
 
-      // マッチング通知を購読
       subscriptionRef.current = client.subscribe(
         `/topic/match/notification/${currentUser.id}`,
         (message) => {
@@ -334,17 +314,19 @@ export default function BattlePage() {
             handleStartBattle(data);
           } else if (data.status === "OPPONENT_LEFT") {
             if (battleEndedRef.current || isSavingRef.current) return;
+
+            if (statusRef.current === "found") {
+              resetToSearching("あいてが にげだした！ べつの あいてを さがします。");
+              return;
+            }
+
             if (data.matchId != null) {
               setMatchId(data.matchId);
               matchIdRef.current = data.matchId;
             }
             setError("あいてが 切断しました！ 不戦勝です。");
             handleOpponentLeftRef.current();
-          } else if (
-            data.status === "OPPONENT_LEFT" ||
-            data.status === "CANCELLED"
-          ) {
-            // 対戦中・終了処理中の leave は無視（結果画面遷移時の queue/leave 対策）
+          } else if (data.status === "CANCELLED") {
             if (
               battleEndedRef.current ||
               statusRef.current === "playing" ||
@@ -353,21 +335,12 @@ export default function BattlePage() {
             ) {
               return;
             }
-            setMatchId(null);
-            setOpponent(null);
-            setRole(null);
-            setIsReady(false);
-            setBattleEndsAt(null);
-            battleSubscriptionRef.current?.unsubscribe();
-            battleSubscriptionRef.current = null;
-            setStatus("searching");
-            setError("あいてが にげだした！ べつの あいてを さがします。");
+            resetToSearching("あいてが にげだした！ べつの あいてを さがします。");
           }
         },
       );
 
-      // マッチング待機列に参加
-      if (status === "searching") {
+      if (statusRef.current === "searching") {
         client.publish({
           destination: "/api/battles/queue/join",
           body: "{}",
@@ -384,7 +357,6 @@ export default function BattlePage() {
     client.onDisconnect = () => {
       console.log("Disconnected from WebSocket");
       setIsConnected(false);
-      // 検索中または発見中に意図せず切断された場合
       setStatus((currentStatus) => {
         if (currentStatus === "searching" || currentStatus === "found") {
           setError("せつぞくが きれました。");
@@ -402,12 +374,7 @@ export default function BattlePage() {
       }
       if (clientRef.current) {
         if (clientRef.current.connected && !battleEndedRef.current) {
-          publishLeaveOrForfeit(currentUser.id);
-        if (clientRef.current.connected) {
-          clientRef.current.publish({
-            destination: getLeaveDestination(statusRef.current),
-            body: "{}",
-          });
+          publishLeave();
         }
         clientRef.current.deactivate();
       }
@@ -416,49 +383,111 @@ export default function BattlePage() {
     };
   }, [currentUser.id]);
 
-  // --- 2. ブラウザ強制終了時の対策 ---
   useEffect(() => {
     if (currentUser.id === 0) return;
 
     const handleUnload = () => {
-      if (battleEndedRef.current) return;
-      const userId = currentUser.id;
-      const currentStatus = statusRef.current;
-      const mId = matchIdRef.current;
-      const isForfeit =
-        (currentStatus === "playing" || currentStatus === "ready") && mId != null;
-      const payload = isForfeit
-        ? JSON.stringify({ userId, matchId: mId })
-        : JSON.stringify({ userId });
-      const blob = new Blob([payload], { type: "application/json" });
-      const url = isForfeit
-        ? `${API_BASE_URL}/api/battles/forfeit`
-        : `${API_BASE_URL}/api/battles/queue/leave`;
-      navigator.sendBeacon(url, blob);
-      const currentStatus = statusRef.current;
-      if (currentStatus === "finished") return;
-
+      if (battleEndedRef.current || statusRef.current === "finished") return;
       const blob = new Blob(["{}"], { type: "application/json" });
-      navigator.sendBeacon(getLeaveRestUrl(currentStatus), blob);
+      navigator.sendBeacon(getLeaveRestUrl(statusRef.current), blob);
     };
+
     window.addEventListener("beforeunload", handleUnload);
     return () => window.removeEventListener("beforeunload", handleUnload);
   }, [currentUser.id]);
 
   const handleFight = () => {
-    // 対戦画面へ遷移する前にサブスクリプションを解除
-    subscriptionRef.current?.unsubscribe();
-    subscriptionRef.current = null;
-    // 実際の対戦画面へ（カウントダウン等）
-    setStatus("ready");
+    if (clientRef.current?.connected && opponent) {
+      setIsReady(true);
+      clientRef.current.publish({
+        destination: "/api/battles/ready",
+        body: "{}",
+      });
+    }
   };
 
+  const handleBattleFinish = async (result: {
+    score: number;
+    accuracy: number;
+    typedChars: number;
+    missCount: number;
+    myHp: number;
+    opponentHp: number;
+    reason: string;
+  }) => {
+    if (isSavingRef.current || !matchId) return;
+    isSavingRef.current = true;
+    battleEndedRef.current = true;
+    setStatus("finished");
+
+    const latestOpponent = opponentStatusRef.current;
+
+    let winnerId: number | null = null;
+    if (result.reason === "win_ko") {
+      winnerId = currentUser.id;
+    } else if (result.reason === "lose_ko") {
+      winnerId = opponent?.id ?? null;
+    } else if (result.reason === "time_up") {
+      if (result.myHp > result.opponentHp) {
+        winnerId = currentUser.id;
+      } else if (result.myHp < result.opponentHp) {
+        winnerId = opponent?.id ?? null;
+      } else if (result.score > (latestOpponent?.score ?? 0)) {
+        winnerId = currentUser.id;
+      } else if (result.score < (latestOpponent?.score ?? 0)) {
+        winnerId = opponent?.id ?? null;
+      }
+    } else if (result.reason === "opponent_left") {
+      winnerId = currentUser.id;
+    }
+
+    try {
+      const battleResult = {
+        matchId,
+        player1Id: role === "player1" ? currentUser.id : opponent?.id,
+        player2Id: role === "player2" ? currentUser.id : opponent?.id,
+        player1Score: role === "player1" ? result.score : (latestOpponent?.score ?? 0),
+        player2Score: role === "player2" ? result.score : (latestOpponent?.score ?? 0),
+        player1AccuracyRate: role === "player1" ? result.accuracy : (latestOpponent?.accuracyRate ?? 0),
+        player2AccuracyRate: role === "player2" ? result.accuracy : (latestOpponent?.accuracyRate ?? 0),
+        player1TypedChars: role === "player1" ? result.typedChars : (latestOpponent?.typedChars ?? 0),
+        player1MissCount: role === "player1" ? result.missCount : (latestOpponent?.missCount ?? 0),
+        player2TypedChars: role === "player2" ? result.typedChars : (latestOpponent?.typedChars ?? 0),
+        player2MissCount: role === "player2" ? result.missCount : (latestOpponent?.missCount ?? 0),
+        winnerId,
+      };
+
+      const res = await fetchWithAuth("/api/battle-results", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(battleResult),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error("Server error response:", errorData);
+        throw new Error(`Failed to save result: ${res.status}`);
+      }
+
+      router.push(`/result/BattleResult?id=${matchId}`);
+    } catch (err) {
+      console.error("Error submitting result:", err);
+      isSavingRef.current = false;
+      setError("けっかの ほぞんに しっぱいしました。サーバーの ログを かくにんしてください。");
+    }
+  };
+
+  useEffect(() => {
+    handleBattleFinishRef.current = handleBattleFinish;
+  });
+
   const handleRun = () => {
-    // 待機列から抜けてメニュー画面へ戻る（ループ防止の対策1）
-    if (clientRef.current && clientRef.current.connected) {
+    if (clientRef.current?.connected) {
       clientRef.current.publish({
-        destination: "/api/battles/queue/leave",
-        body: JSON.stringify({ userId: currentUser.id }),
+        destination: "/api/battles/match/leave",
+        body: "{}",
       });
     }
     router.push("/home");
@@ -474,26 +503,16 @@ export default function BattlePage() {
             </div>
           )}
 
-          {/* --- ステータス1: 検索中 --- */}
           {status === "searching" && (
             <div className="flex flex-col items-center py-16">
-              {/* グルグル（スピンアニメーション） */}
               <div className="relative mb-12">
-                <div
-                  className={`h-24 w-24 animate-spin rounded-full border-b-4 border-t-4 ${isConnected ? "border-yellow-400" : "border-gray-500"}`}
-                ></div>
+                <div className={`h-24 w-24 animate-spin rounded-full border-b-4 border-t-4 ${isConnected ? "border-yellow-400" : "border-gray-500"}`}></div>
                 <div className="absolute inset-0 flex items-center justify-center text-4xl">
                   {isConnected ? "⚔️" : "☁️"}
                 </div>
               </div>
               <p className="text-2xl text-white">
-                <TypewriterText
-                  text={
-                    isConnected
-                      ? "対戦相手を さがしています..."
-                      : "サーバーに せつぞくちゅう..."
-                  }
-                />
+                <TypewriterText text={isConnected ? "対戦相手を さがしています..." : "サーバーに せつぞくちゅう..."} />
               </p>
               <div className="mt-12">
                 <BackButton />
@@ -501,7 +520,6 @@ export default function BattlePage() {
             </div>
           )}
 
-          {/* --- ステータス2: 対戦相手発見 (野生の...が現れた) --- */}
           {status === "found" && opponent && (
             <div className="flex w-full flex-col items-center py-8">
               <div className="flex items-center gap-12 mb-12 animate-bounce">
@@ -509,9 +527,7 @@ export default function BattlePage() {
                   <UserAvatar user={currentUser} size="lg" />
                   <p className="mt-2 text-sm text-slate-400">あなた</p>
                 </div>
-                <div className="text-5xl font-black italic text-red-600">
-                  VS
-                </div>
+                <div className="text-5xl font-black italic text-red-600">VS</div>
                 <div className="flex flex-col items-center">
                   <UserAvatar user={opponent} size="lg" />
                   <p className="mt-2 text-sm text-slate-400">あいて</p>
@@ -528,7 +544,6 @@ export default function BattlePage() {
                 </p>
               </div>
 
-              {/* 文言が出終わったらメニューを表示 */}
               <div
                 className={`flex flex-col items-start gap-4 transition-opacity duration-500 ${isMessageComplete ? "opacity-100" : "opacity-0 pointer-events-none"}`}
               >
@@ -550,7 +565,6 @@ export default function BattlePage() {
             </div>
           )}
 
-          {/* --- ステータス3: カウントダウン / 準備中 --- */}
           {status === "ready" && (
             <div className="flex flex-col items-center py-20">
               <p className="text-3xl mb-8 font-bold">じゅんびは いいか！</p>
@@ -560,7 +574,6 @@ export default function BattlePage() {
             </div>
           )}
 
-          {/* --- ステータス4: 対戦中 --- */}
           {status === "playing" && matchId && opponent && battleEndsAt !== null && (
             <BattlePlaying
               ref={battlePlayingRef}
@@ -575,7 +588,6 @@ export default function BattlePage() {
             />
           )}
 
-          {/* --- ステータス5: 終了 --- */}
           {status === "finished" && (
             <div className="flex flex-col items-center py-20">
               <div className="h-24 w-24 animate-spin rounded-full border-b-4 border-t-4 border-white"></div>
