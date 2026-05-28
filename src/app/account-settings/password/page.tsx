@@ -7,8 +7,10 @@ import EyeIcon from "@/components/EyeIcon";
 import WindowPanel from "@/components/WindowPanel";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
 import {
+  removePasswordSpaces,
   validateConfirmPassword,
-  validatePassword,
+  validateCurrentPassword,
+  validateNewPassword,
 } from "@/lib/validation";
 
 async function updatePassword(currentPassword: string, newPassword: string): Promise<void> {
@@ -46,12 +48,13 @@ export default function PasswordSettingsPage() {
     setMessage("");
     setErrorMessage("");
 
-    if (!currentPassword) {
-      setErrorMessage("現在のパスワードを入力してください");
+    const currentPasswordError = validateCurrentPassword(currentPassword);
+    if (currentPasswordError) {
+      setErrorMessage(currentPasswordError);
       return;
     }
 
-    const newPasswordError = validatePassword(newPassword);
+    const newPasswordError = validateNewPassword(newPassword);
     if (newPasswordError) {
       setErrorMessage(newPasswordError);
       return;
@@ -124,7 +127,7 @@ export default function PasswordSettingsPage() {
               <input
                 type={showNewPassword ? "text" : "password"}
                 value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
+                onChange={(event) => setNewPassword(removePasswordSpaces(event.target.value))}
                 className="w-full border-2 border-white bg-[#050816] px-4 py-3 pr-12 text-white outline-none focus:border-yellow-200"
                 required
               />
@@ -145,7 +148,7 @@ export default function PasswordSettingsPage() {
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
+                onChange={(event) => setConfirmPassword(removePasswordSpaces(event.target.value))}
                 className="w-full border-2 border-white bg-[#050816] px-4 py-3 pr-12 text-white outline-none focus:border-yellow-200"
                 required
               />

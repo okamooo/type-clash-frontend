@@ -8,6 +8,10 @@ import UserAvatar from "@/components/UserAvatar";
 import WindowPanel from "@/components/WindowPanel";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
+import {
+  removeUserNameSpaces,
+  validateUserName,
+} from "@/lib/validation";
 
 const MAX_NAME_LENGTH = 50;
 
@@ -51,14 +55,17 @@ function PlayerNameModal(props: PlayerNameModalProps) {
   }, []);
 
   const handleSave = async () => {
-    const trimmedValue = value.trim();
-    if (!trimmedValue) return;
+    const validationError = validateUserName(value);
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMessage("");
 
     try {
-      await props.onSave(trimmedValue);
+      await props.onSave(value);
     } catch (error) {
       setErrorMessage(
         error instanceof Error
@@ -71,7 +78,7 @@ function PlayerNameModal(props: PlayerNameModalProps) {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setValue(e.target.value);
+    setValue(removeUserNameSpaces(e.target.value));
 
     if (errorMessage) {
       setErrorMessage("");
@@ -135,7 +142,7 @@ function PlayerNameModal(props: PlayerNameModalProps) {
           <button
             type="button"
             onClick={handleSave}
-            disabled={!value.trim() || isSubmitting}
+            disabled={Boolean(validateUserName(value)) || isSubmitting}
             className="flex-1 cursor-pointer border-2 border-white bg-[#050816] py-1.5 font-bold transition-colors hover:border-blue-400 hover:text-blue-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {isSubmitting ? "保存中" : "OK"}
