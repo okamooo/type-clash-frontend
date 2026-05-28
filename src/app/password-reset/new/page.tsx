@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import EyeIcon from "@/components/EyeIcon";
 import WindowPanel from "@/components/WindowPanel";
 import {
+  removePasswordSpaces,
   validateConfirmPassword,
   validatePassword,
   type ValidationErrors,
@@ -177,7 +178,7 @@ export default function PasswordResetNewPage() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(removePasswordSpaces(e.target.value))}
                   autoComplete="new-password"
                   placeholder="8文字以上、127文字以内"
                   className="w-full border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 pr-12 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
@@ -207,7 +208,7 @@ export default function PasswordResetNewPage() {
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => setConfirmPassword(removePasswordSpaces(e.target.value))}
                   onBlur={handleConfirmPasswordBlur}
                   autoComplete="new-password"
                   placeholder="パスワードを再入力してください"

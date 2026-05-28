@@ -1,5 +1,30 @@
 export type ValidationErrors = Record<string, string | undefined>;
 
+const USER_NAME_SPACE_PATTERN = /[ 　]/;
+const USER_NAME_SPACES_PATTERN = /[ 　]/g;
+const PASSWORD_SPACE_PATTERN = /[ 　]/;
+const PASSWORD_SPACES_PATTERN = /[ 　]/g;
+
+export function removeUserNameSpaces(name: string): string {
+  return name.replace(USER_NAME_SPACES_PATTERN, "");
+}
+
+export function validateUserName(name: string): string | undefined {
+  if (!name) {
+    return "ユーザー名を入力してください";
+  }
+
+  if (USER_NAME_SPACE_PATTERN.test(name)) {
+    return "ユーザー名にスペースは使用できません";
+  }
+
+  return undefined;
+}
+
+export function removePasswordSpaces(password: string): string {
+  return password.replace(PASSWORD_SPACES_PATTERN, "");
+}
+
 export function validateEmail(email: string): string | undefined {
   if (!email) {
     return "メールアドレスを入力してください";
@@ -34,6 +59,10 @@ export function validatePassword(
 ): string | undefined {
   if (!password) {
     return emptyMessage;
+  }
+
+  if (PASSWORD_SPACE_PATTERN.test(password)) {
+    return "パスワードにスペースは使用できません";
   }
 
   if (password.length < 8 || password.length > 127) {

@@ -7,6 +7,7 @@ import EyeIcon from "@/components/EyeIcon";
 import WindowPanel from "@/components/WindowPanel";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
 import {
+  removePasswordSpaces,
   validateConfirmPassword,
   validatePassword,
 } from "@/lib/validation";
@@ -103,7 +104,7 @@ export default function PasswordSettingsPage() {
               <input
                 type={showCurrentPassword ? "text" : "password"}
                 value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
+                onChange={(event) => setCurrentPassword(removePasswordSpaces(event.target.value))}
                 className="w-full border-2 border-white bg-[#050816] px-4 py-3 pr-12 text-white outline-none focus:border-yellow-200"
                 required
               />
@@ -124,7 +125,7 @@ export default function PasswordSettingsPage() {
               <input
                 type={showNewPassword ? "text" : "password"}
                 value={newPassword}
-                onChange={(event) => setNewPassword(event.target.value)}
+                onChange={(event) => setNewPassword(removePasswordSpaces(event.target.value))}
                 className="w-full border-2 border-white bg-[#050816] px-4 py-3 pr-12 text-white outline-none focus:border-yellow-200"
                 required
               />
@@ -145,7 +146,7 @@ export default function PasswordSettingsPage() {
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 value={confirmPassword}
-                onChange={(event) => setConfirmPassword(event.target.value)}
+                onChange={(event) => setConfirmPassword(removePasswordSpaces(event.target.value))}
                 className="w-full border-2 border-white bg-[#050816] px-4 py-3 pr-12 text-white outline-none focus:border-yellow-200"
                 required
               />

@@ -7,6 +7,7 @@ import Link from "next/link";
 import EyeIcon from "@/components/EyeIcon";
 import WindowPanel from "@/components/WindowPanel";
 import {
+  removePasswordSpaces,
   validateEmail,
   validatePassword,
   type ValidationErrors,
@@ -141,7 +142,7 @@ function LoginForm() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(removePasswordSpaces(e.target.value))}
                   autoComplete="current-password"
                   className="w-full border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 pr-12 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
                 />

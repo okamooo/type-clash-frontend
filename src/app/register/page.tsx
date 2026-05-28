@@ -11,7 +11,10 @@ import {
   validateConfirmPassword,
   validateEmail,
   validatePassword,
+  removePasswordSpaces,
+  removeUserNameSpaces,
   validateVerificationCode,
+  validateUserName,
   type ValidationErrors,
 } from "@/lib/validation";
 import Link from "next/link";
@@ -26,14 +29,12 @@ function validateRegister(
 ): ValidationErrors {
   const errors: ValidationErrors = {};
 
-  if (!name) {
-    errors.name = "ユーザー名を入力してください";
-  }
-
+  const nameError = validateUserName(name);
   const emailError = validateEmail(email);
   const passwordError = validatePassword(password);
   const confirmPasswordError = validateConfirmPassword(password, confirmPassword);
 
+  if (nameError) errors.name = nameError;
   if (emailError) errors.email = emailError;
   if (passwordError) errors.password = passwordError;
   if (confirmPasswordError) errors.confirmPassword = confirmPasswordError;
@@ -248,9 +249,9 @@ export default function RegisterPage() {
                   id="name"
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => setName(removeUserNameSpaces(e.target.value))}
                   autoComplete="username"
-                  placeholder="山田 太郎"
+                  placeholder="山田太郎"
                   className="border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
                 />
               </div>
@@ -289,7 +290,7 @@ export default function RegisterPage() {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => setPassword(removePasswordSpaces(e.target.value))}
                     autoComplete="new-password"
                     placeholder="8文字以上、127文字以内"
                     className="w-full border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 pr-12 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
@@ -319,7 +320,7 @@ export default function RegisterPage() {
                     id="confirmPassword"
                     type={showConfirmPassword ? "text" : "password"}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => setConfirmPassword(removePasswordSpaces(e.target.value))}
                     autoComplete="new-password"
                     placeholder="パスワードを再入力してください"
                     className="w-full border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 pr-12 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
