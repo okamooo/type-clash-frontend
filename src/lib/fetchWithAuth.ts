@@ -1,8 +1,7 @@
-// const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-const API_BASE = "http://localhost:8080";
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
 export async function fetchWithAuth(path: string, options?: RequestInit): Promise<Response> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
     credentials: "include",
   });

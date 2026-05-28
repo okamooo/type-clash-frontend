@@ -9,13 +9,13 @@ import MenuItem from "@/components/MenuItem";
 import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import BackButton from "@/components/BackButton";
 import UserAvatar from "@/components/UserAvatar";
+import { getApiBaseUrl, getWsBattleUrl } from "@/lib/apiConfig";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
 import { MagicWord, BattleStatus, OpponentInfo, BattleMessage } from "@/types/battle";
 import BattlePlaying, { BattlePlayingHandle } from "@/components/BattlePlaying";
 
 const BATTLE_COUNTDOWN_SECONDS = 3;
 const BATTLE_TIME_SECONDS = 60;
-const API_BASE_URL = "http://localhost:8080";
 const INITIAL_HP = 100;
 
 const getLeaveDestination = (currentStatus: BattleStatus) => {
@@ -29,13 +29,14 @@ const getLeaveDestination = (currentStatus: BattleStatus) => {
 };
 
 const getLeaveRestUrl = (currentStatus: BattleStatus) => {
+  const apiBaseUrl = getApiBaseUrl();
   if (currentStatus === "ready" || currentStatus === "playing") {
-    return `${API_BASE_URL}/api/battles/forfeit`;
+    return `${apiBaseUrl}/api/battles/forfeit`;
   }
   if (currentStatus === "found") {
-    return `${API_BASE_URL}/api/battles/match/leave`;
+    return `${apiBaseUrl}/api/battles/match/leave`;
   }
-  return `${API_BASE_URL}/api/battles/queue/leave`;
+  return `${apiBaseUrl}/api/battles/queue/leave`;
 };
 
 export default function BattlePage() {
@@ -136,7 +137,7 @@ export default function BattlePage() {
     if (currentUser.id === 0) return;
 
     const client = new Client({
-      brokerURL: "ws://localhost:8080/ws-battle",
+      brokerURL: getWsBattleUrl(),
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,

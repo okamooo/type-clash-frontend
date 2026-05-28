@@ -8,8 +8,7 @@ import MessagePanel from "@/components/MessagePanel";
 import TypewriterText from "@/components/TypewriterText";
 import UserAvatar from "@/components/UserAvatar";
 import WindowPanel from "@/components/WindowPanel";
-
-const API_BASE_URL = "http://localhost:8080";
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
 type BattlePlayerRole = "player1" | "player2";
 
@@ -327,7 +326,7 @@ function BattleResultContent() {
 
     const fetchResult = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/battle-results?id=${resultId}`, {
+        const res = await fetchWithAuth(`/api/battle-results?id=${resultId}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
