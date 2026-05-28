@@ -1,5 +1,7 @@
 "use client";
 
+import { removeVerificationCodeSpaces } from "@/lib/validation";
+
 type VerificationCodeFormProps = {
   verificationCode: string;
   onCodeChange: (code: string) => void;
@@ -61,7 +63,7 @@ export default function VerificationCodeForm({
           id="verificationCode"
           type="text"
           value={verificationCode}
-          onChange={(e) => onCodeChange(e.target.value)}
+          onChange={(e) => onCodeChange(removeVerificationCodeSpaces(e.target.value))}
           placeholder="認証コードを入力"
           inputMode="numeric"
           autoComplete="one-time-code"

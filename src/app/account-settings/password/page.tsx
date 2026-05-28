@@ -9,6 +9,7 @@ import { fetchWithAuth } from "@/lib/fetchWithAuth";
 import {
   removePasswordSpaces,
   validateConfirmPassword,
+  validateCurrentPassword,
   validatePassword,
 } from "@/lib/validation";
 
@@ -47,8 +48,9 @@ export default function PasswordSettingsPage() {
     setMessage("");
     setErrorMessage("");
 
-    if (!currentPassword) {
-      setErrorMessage("現在のパスワードを入力してください");
+    const currentPasswordError = validateCurrentPassword(currentPassword);
+    if (currentPasswordError) {
+      setErrorMessage(currentPasswordError);
       return;
     }
 
