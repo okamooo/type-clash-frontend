@@ -8,7 +8,7 @@ import WindowPanel from "@/components/WindowPanel";
 import {
   removePasswordSpaces,
   validateConfirmPassword,
-  validatePassword,
+  validateNewPassword,
   type ValidationErrors,
 } from "@/lib/validation";
 import Link from "next/link";
@@ -17,7 +17,7 @@ const API_BASE = "http://localhost:8080";
 
 function validatePasswords(password: string, confirmPassword: string): ValidationErrors {
   const errors: ValidationErrors = {};
-  const passwordError = validatePassword(
+  const passwordError = validateNewPassword(
     password,
     "新しいパスワードを入力してください",
   );

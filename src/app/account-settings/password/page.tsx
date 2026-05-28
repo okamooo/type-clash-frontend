@@ -10,7 +10,7 @@ import {
   removePasswordSpaces,
   validateConfirmPassword,
   validateCurrentPassword,
-  validatePassword,
+  validateNewPassword,
 } from "@/lib/validation";
 
 async function updatePassword(currentPassword: string, newPassword: string): Promise<void> {
@@ -54,7 +54,7 @@ export default function PasswordSettingsPage() {
       return;
     }
 
-    const newPasswordError = validatePassword(newPassword);
+    const newPasswordError = validateNewPassword(newPassword);
     if (newPasswordError) {
       setErrorMessage(newPasswordError);
       return;
@@ -106,7 +106,7 @@ export default function PasswordSettingsPage() {
               <input
                 type={showCurrentPassword ? "text" : "password"}
                 value={currentPassword}
-                onChange={(event) => setCurrentPassword(removePasswordSpaces(event.target.value))}
+                onChange={(event) => setCurrentPassword(event.target.value)}
                 className="w-full border-2 border-white bg-[#050816] px-4 py-3 pr-12 text-white outline-none focus:border-yellow-200"
                 required
               />

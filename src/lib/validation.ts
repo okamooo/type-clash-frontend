@@ -1,11 +1,11 @@
 export type ValidationErrors = Record<string, string | undefined>;
 
-const USER_NAME_SPACE_PATTERN = /[ 　]/;
-const USER_NAME_SPACES_PATTERN = /[ 　]/g;
-const PASSWORD_SPACE_PATTERN = /[ 　]/;
-const PASSWORD_SPACES_PATTERN = /[ 　]/g;
-const VERIFICATION_CODE_SPACE_PATTERN = /[ 　]/;
-const VERIFICATION_CODE_SPACES_PATTERN = /[ 　]/g;
+const USER_NAME_SPACE_PATTERN = /\s/;
+const USER_NAME_SPACES_PATTERN = /\s/g;
+const PASSWORD_SPACE_PATTERN = /\s/;
+const PASSWORD_SPACES_PATTERN = /\s/g;
+const VERIFICATION_CODE_SPACE_PATTERN = /\s/;
+const VERIFICATION_CODE_SPACES_PATTERN = /\s/g;
 
 export function removeUserNameSpaces(name: string): string {
   return name.replace(USER_NAME_SPACES_PATTERN, "");
@@ -67,6 +67,18 @@ export function validatePassword(
     return emptyMessage;
   }
 
+  return undefined;
+}
+
+export function validateNewPassword(
+  password: string,
+  emptyMessage = "パスワードを入力してください",
+): string | undefined {
+  const passwordError = validatePassword(password, emptyMessage);
+  if (passwordError) {
+    return passwordError;
+  }
+
   if (PASSWORD_SPACE_PATTERN.test(password)) {
     return "パスワードにスペースは使用できません";
   }
@@ -98,10 +110,6 @@ export function validateCurrentPassword(password: string): string | undefined {
     return "現在のパスワードを入力してください";
   }
 
-  if (PASSWORD_SPACE_PATTERN.test(password)) {
-    return "現在のパスワードにスペースは使用できません";
-  }
-
   if (password.length > 127) {
     return "現在のパスワードは127文字以内で入力してください";
   }
@@ -120,6 +128,10 @@ export function validateVerificationCode(code: string): string | undefined {
 
   if (VERIFICATION_CODE_SPACE_PATTERN.test(code)) {
     return "認証コードにスペースは使用できません";
+  }
+
+  if (!/^\d+$/.test(code)) {
+    return "認証コードは半角数字で入力してください";
   }
 
   if (code.length !== 6) {

@@ -10,7 +10,7 @@ import { useResendCooldown } from "@/hooks/useResendCooldown";
 import {
   validateConfirmPassword,
   validateEmail,
-  validatePassword,
+  validateNewPassword,
   removePasswordSpaces,
   removeUserNameSpaces,
   validateVerificationCode,
@@ -31,7 +31,7 @@ function validateRegister(
 
   const nameError = validateUserName(name);
   const emailError = validateEmail(email);
-  const passwordError = validatePassword(password);
+  const passwordError = validateNewPassword(password);
   const confirmPasswordError = validateConfirmPassword(password, confirmPassword);
 
   if (nameError) errors.name = nameError;
@@ -252,6 +252,7 @@ export default function RegisterPage() {
                   onChange={(e) => setName(removeUserNameSpaces(e.target.value))}
                   autoComplete="username"
                   placeholder="山田太郎"
+                  maxLength={50}
                   className="border border-slate-400 bg-[#0d1b3e]/80 px-4 py-2 text-lg text-white outline-none placeholder:text-slate-400 focus:border-slate-100"
                 />
               </div>
