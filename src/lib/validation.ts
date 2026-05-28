@@ -1,14 +1,9 @@
 export type ValidationErrors = Record<string, string | undefined>;
 
-const USER_NAME_SPACE_PATTERN = /\s/;
-const USER_NAME_SPACES_PATTERN = /\s/g;
-const PASSWORD_SPACE_PATTERN = /\s/;
-const PASSWORD_SPACES_PATTERN = /\s/g;
-const VERIFICATION_CODE_SPACE_PATTERN = /\s/;
-const VERIFICATION_CODE_SPACES_PATTERN = /\s/g;
+const SPACE_PATTERN = /\s/;
 
 export function removeUserNameSpaces(name: string): string {
-  return name.replace(USER_NAME_SPACES_PATTERN, "");
+  return name.replace(/\s/g, "");
 }
 
 export function validateUserName(name: string): string | undefined {
@@ -16,7 +11,7 @@ export function validateUserName(name: string): string | undefined {
     return "ユーザー名を入力してください";
   }
 
-  if (USER_NAME_SPACE_PATTERN.test(name)) {
+  if (SPACE_PATTERN.test(name)) {
     return "ユーザー名にスペースは使用できません";
   }
 
@@ -28,7 +23,7 @@ export function validateUserName(name: string): string | undefined {
 }
 
 export function removePasswordSpaces(password: string): string {
-  return password.replace(PASSWORD_SPACES_PATTERN, "");
+  return password.replace(/\s/g, "");
 }
 
 export function validateEmail(email: string): string | undefined {
@@ -79,7 +74,7 @@ export function validateNewPassword(
     return passwordError;
   }
 
-  if (PASSWORD_SPACE_PATTERN.test(password)) {
+  if (SPACE_PATTERN.test(password)) {
     return "パスワードにスペースは使用できません";
   }
 
@@ -118,7 +113,7 @@ export function validateCurrentPassword(password: string): string | undefined {
 }
 
 export function removeVerificationCodeSpaces(code: string): string {
-  return code.replace(VERIFICATION_CODE_SPACES_PATTERN, "");
+  return code.replace(/\s/g, "");
 }
 
 export function validateVerificationCode(code: string): string | undefined {
@@ -126,7 +121,7 @@ export function validateVerificationCode(code: string): string | undefined {
     return "認証コードを入力してください";
   }
 
-  if (VERIFICATION_CODE_SPACE_PATTERN.test(code)) {
+  if (SPACE_PATTERN.test(code)) {
     return "認証コードにスペースは使用できません";
   }
 
