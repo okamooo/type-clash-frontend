@@ -1,5 +1,31 @@
 export type ValidationErrors = Record<string, string | undefined>;
 
+const SPACE_PATTERN = /\s/;
+
+export function removeUserNameSpaces(name: string): string {
+  return name.replace(/\s/g, "");
+}
+
+export function validateUserName(name: string): string | undefined {
+  if (!name) {
+    return "ユーザー名を入力してください";
+  }
+
+  if (SPACE_PATTERN.test(name)) {
+    return "ユーザー名にスペースは使用できません";
+  }
+
+  if (name.length > 50) {
+    return "ユーザー名は50文字以内で入力してください";
+  }
+
+  return undefined;
+}
+
+export function removePasswordSpaces(password: string): string {
+  return password.replace(/\s/g, "");
+}
+
 export function validateEmail(email: string): string | undefined {
   if (!email) {
     return "メールアドレスを入力してください";
@@ -36,6 +62,22 @@ export function validatePassword(
     return emptyMessage;
   }
 
+  return undefined;
+}
+
+export function validateNewPassword(
+  password: string,
+  emptyMessage = "パスワードを入力してください",
+): string | undefined {
+  const passwordError = validatePassword(password, emptyMessage);
+  if (passwordError) {
+    return passwordError;
+  }
+
+  if (SPACE_PATTERN.test(password)) {
+    return "パスワードにスペースは使用できません";
+  }
+
   if (password.length < 8 || password.length > 127) {
     return "パスワードは8文字以上、127文字以内で入力してください";
   }
@@ -58,9 +100,37 @@ export function validateConfirmPassword(
   return undefined;
 }
 
+export function validateCurrentPassword(password: string): string | undefined {
+  if (!password) {
+    return "現在のパスワードを入力してください";
+  }
+
+  if (password.length > 127) {
+    return "現在のパスワードは127文字以内で入力してください";
+  }
+
+  return undefined;
+}
+
+export function removeVerificationCodeSpaces(code: string): string {
+  return code.replace(/\s/g, "");
+}
+
 export function validateVerificationCode(code: string): string | undefined {
-  if (!code.trim()) {
+  if (!code) {
     return "認証コードを入力してください";
+  }
+
+  if (SPACE_PATTERN.test(code)) {
+    return "認証コードにスペースは使用できません";
+  }
+
+  if (!/^\d+$/.test(code)) {
+    return "認証コードは半角数字で入力してください";
+  }
+
+  if (code.length !== 6) {
+    return "6桁の認証コードを入力してください";
   }
 
   return undefined;
