@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, Suspense } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import MessagePanel from "@/components/MessagePanel";
 import TypewriterText from "@/components/TypewriterText";
 import UserAvatar from "@/components/UserAvatar";
 import WindowPanel from "@/components/WindowPanel";
-import { getApiBaseUrl } from "@/lib/apiConfig";
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
 type BattlePlayerRole = "player1" | "player2";
 
@@ -119,13 +119,11 @@ type BattlePlayerPanelProps = Readonly<{
   markComplete: (panelKey: string) => void;
 }>;
 
-type BattlePlayerResult = Omit<
-  BattlePlayerPanelProps,
-  "markComplete"
-> & Readonly<{
-  playerId: string;
-  isComplete: boolean;
-}>;
+type BattlePlayerResult = Omit<BattlePlayerPanelProps, "markComplete"> &
+  Readonly<{
+    playerId: string;
+    isComplete: boolean;
+  }>;
 
 type BattleCompleteKeys = Readonly<Record<string, CompletionKeys>>;
 
@@ -309,31 +307,40 @@ function BattlePlayerPanel({
   );
 }
 
-export default function BattleResult() {
+function BattleResultContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resultId = searchParams.get("id");
+
   // API接続時は初期値を null に戻す。
-  const [result, setResult] = useState<Result | null>(mockBattleResult);
+  const [result, setResult] = useState<Result | null>(null);
   const [completedPanels, setCompletedPanels] = useState<
     Readonly<Record<string, boolean>>
   >({});
   const [visibleWinnerKey, setVisibleWinnerKey] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!resultId) return;
+
     const fetchResult = async () => {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/battle-results`, {
+        const res = await fetchWithAuth(`/api/battle-results?id=${resultId}`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
+
+        if (!res.ok) throw new Error("Failed to fetch");
+
         const data: Result = await res.json();
         setResult(data);
-      } catch {
+      } catch (err) {
+        console.error("Fetch error:", err);
         setResult(mockBattleResult);
       }
     };
 
     fetchResult();
-  }, []);
+  }, [resultId]);
 
   const resultKey = result ? String(result.id) : "loading";
   const completeKeys = buildCompletionKeys(result);
@@ -454,5 +461,17 @@ export default function BattleResult() {
         </div>
       </WindowPanel>
     </main>
+  );
+}
+
+export default function BattleResult() {
+  return (
+    <Suspense
+      fallback={
+        <div className="text-white text-center py-20">読み込み中...</div>
+      }
+    >
+      <BattleResultContent />
+    </Suspense>
   );
 }
