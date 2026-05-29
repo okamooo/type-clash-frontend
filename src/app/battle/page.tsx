@@ -10,6 +10,7 @@ import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import BackButton from "@/components/BackButton";
 import UserAvatar from "@/components/UserAvatar";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
+import { getWsBattleUrl } from "@/lib/apiConfig";
 
 type BattleStatus = "searching" | "found" | "ready" | "playing" | "finished";
 
@@ -68,7 +69,7 @@ export default function BattlePage() {
     if (currentUser.id === 0) return;
 
     const client = new Client({
-      brokerURL: "ws://localhost:8080/ws-battle",
+      brokerURL: getWsBattleUrl(),
       reconnectDelay: 5000,
       heartbeatIncoming: 4000,
       heartbeatOutgoing: 4000,

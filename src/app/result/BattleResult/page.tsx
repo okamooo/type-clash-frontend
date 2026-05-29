@@ -8,8 +8,7 @@ import MessagePanel from "@/components/MessagePanel";
 import TypewriterText from "@/components/TypewriterText";
 import UserAvatar from "@/components/UserAvatar";
 import WindowPanel from "@/components/WindowPanel";
-
-const API_BASE_URL = "http://localhost:8080";
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
 type BattlePlayerRole = "player1" | "player2";
 
@@ -322,7 +321,7 @@ export default function BattleResult() {
   useEffect(() => {
     const fetchResult = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/battle-results`, {
+        const res = await fetch(`${getApiBaseUrl()}/api/battle-results`, {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });

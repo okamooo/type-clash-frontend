@@ -18,8 +18,7 @@ import {
   type ValidationErrors,
 } from "@/lib/validation";
 import Link from "next/link";
-
-const API_BASE = "http://localhost:8080";
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
 function validateRegister(
   name: string,
@@ -82,7 +81,7 @@ export default function RegisterPage() {
     setSuccessMessage("");
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/otp/register`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/otp/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -133,7 +132,7 @@ export default function RegisterPage() {
 
     try {
       // OTP検証 → 成功すると registerToken Cookie がセットされる
-      const verifyRes = await fetch(`${API_BASE}/api/auth/otp/verify`, {
+      const verifyRes = await fetch(`${getApiBaseUrl()}/api/auth/otp/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -158,7 +157,7 @@ export default function RegisterPage() {
         return;
       }
 
-      const registerRes = await fetch(`${API_BASE}/api/auth/registerUser`, {
+      const registerRes = await fetch(`${getApiBaseUrl()}/api/auth/registerUser`, {
         method: "POST",
         credentials: "include",
       });
@@ -187,7 +186,7 @@ export default function RegisterPage() {
     setErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/otp/register`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/otp/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

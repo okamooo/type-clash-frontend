@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import WindowPanel from "@/components/WindowPanel";
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
 type History = {
   finishedAt: string;
@@ -53,7 +54,7 @@ export default function HistoryPage() {
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
         const res = await fetch(
-          `http://localhost:8080/api/single-results/history?userId=${USER_ID}`,
+          `${getApiBaseUrl()}/api/single-results/history?userId=${USER_ID}`,
           { signal: controller.signal }
         );
 

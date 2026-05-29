@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import WindowPanel from "@/components/WindowPanel";
 import BackButton from "@/components/BackButton";
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
 interface Word {
   id: number;
@@ -51,7 +52,7 @@ export default function SingleModePage() {
   useEffect(() => {
     const fetchWords = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/words");
+        const response = await fetch(`${getApiBaseUrl()}/api/words`);
         if (!response.ok) throw new Error("Fetch failed");
         const data = await response.json();
         setWords(data);
@@ -191,7 +192,7 @@ export default function SingleModePage() {
         const finalScore = calculateCurrentScore(finalCorrect, finalTotal);
 
         try {
-          await fetch("http://localhost:8080/api/single-results", {
+          await fetch(`${getApiBaseUrl()}/api/single-results`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
