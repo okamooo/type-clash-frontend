@@ -12,8 +12,7 @@ import {
   type ValidationErrors,
 } from "@/lib/validation";
 import Link from "next/link";
-
-const API_BASE = "http://localhost:8080";
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
 function validatePasswords(password: string, confirmPassword: string): ValidationErrors {
   const errors: ValidationErrors = {};
@@ -48,7 +47,7 @@ export default function PasswordResetNewPage() {
 
     async function checkSession() {
       try {
-        const res = await fetch(`${API_BASE}/api/auth/password-reset/verify-session`, {
+        const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/verify-session`, {
           method: "GET",
           credentials: "include",
         });
@@ -112,7 +111,7 @@ export default function PasswordResetNewPage() {
 
     try {
       // emailはクッキーでバックエンドが参照するため送信不要
-      const res = await fetch(`${API_BASE}/api/auth/password-reset/new`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/new`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

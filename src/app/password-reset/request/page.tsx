@@ -12,8 +12,7 @@ import {
   type ValidationErrors,
 } from "@/lib/validation";
 import Link from "next/link";
-
-const API_BASE = "http://localhost:8080";
+import { getApiBaseUrl } from "@/lib/apiConfig";
 
 export default function PasswordResetRequestPage() {
   const [step, setStep] = useState<"request" | "verify">("request");
@@ -45,7 +44,7 @@ export default function PasswordResetRequestPage() {
     setErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/password-reset/request`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -89,7 +88,7 @@ export default function PasswordResetRequestPage() {
     setErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/password-reset/verify`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -126,7 +125,7 @@ export default function PasswordResetRequestPage() {
     setErrors({});
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/password-reset/request`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

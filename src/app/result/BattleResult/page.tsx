@@ -119,13 +119,11 @@ type BattlePlayerPanelProps = Readonly<{
   markComplete: (panelKey: string) => void;
 }>;
 
-type BattlePlayerResult = Omit<
-  BattlePlayerPanelProps,
-  "markComplete"
-> & Readonly<{
-  playerId: string;
-  isComplete: boolean;
-}>;
+type BattlePlayerResult = Omit<BattlePlayerPanelProps, "markComplete"> &
+  Readonly<{
+    playerId: string;
+    isComplete: boolean;
+  }>;
 
 type BattleCompleteKeys = Readonly<Record<string, CompletionKeys>>;
 
@@ -468,7 +466,11 @@ function BattleResultContent() {
 
 export default function BattleResult() {
   return (
-    <Suspense fallback={<div className="text-white text-center py-20">読み込み中...</div>}>
+    <Suspense
+      fallback={
+        <div className="text-white text-center py-20">読み込み中...</div>
+      }
+    >
       <BattleResultContent />
     </Suspense>
   );
