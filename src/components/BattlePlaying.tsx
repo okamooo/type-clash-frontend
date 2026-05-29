@@ -155,6 +155,7 @@ const BattlePlaying = forwardRef<BattlePlayingHandle, BattlePlayingProps>(functi
       setTimeLeft(remainingSeconds);
       if (remainingSeconds <= 0 && !finishedRef.current) {
         if (timerRef.current) clearInterval(timerRef.current);
+        sendUpdate(0);
         handleFinish("time_up");
       }
     };
@@ -165,7 +166,7 @@ const BattlePlaying = forwardRef<BattlePlayingHandle, BattlePlayingProps>(functi
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [battleEndsAt, handleFinish]);
+  }, [battleEndsAt, handleFinish, sendUpdate]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (isFinished || finishedRef.current) return;

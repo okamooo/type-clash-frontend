@@ -459,6 +459,8 @@ export default function BattlePage() {
         player1MissCount: role === "player1" ? result.missCount : (latestOpponent?.missCount ?? 0),
         player2TypedChars: role === "player2" ? result.typedChars : (latestOpponent?.typedChars ?? 0),
         player2MissCount: role === "player2" ? result.missCount : (latestOpponent?.missCount ?? 0),
+        player1Hp: role === "player1" ? result.myHp : undefined,
+        player2Hp: role === "player2" ? result.myHp : undefined,
         winnerId,
       };
 
