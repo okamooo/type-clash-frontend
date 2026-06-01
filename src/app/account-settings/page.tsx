@@ -14,6 +14,8 @@ import {
 } from "@/lib/validation";
 
 const MAX_NAME_LENGTH = 50;
+const MAX_ICON_FILE_SIZE = 5 * 1024 * 1024;
+const ALLOWED_ICON_FILE_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 const editIcon = (
   <svg
@@ -251,6 +253,16 @@ export default function AccountSettingsPage() {
     const file = e.target.files?.[0];
 
     if (!file || !user) return;
+
+    if (!ALLOWED_ICON_FILE_TYPES.includes(file.type)) {
+      setIconErrorMessage("PNG、JPEG、WebP形式の画像を選択してください");
+      return;
+    }
+
+    if (file.size > MAX_ICON_FILE_SIZE) {
+      setIconErrorMessage("画像サイズは5MB以下にしてください");
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
