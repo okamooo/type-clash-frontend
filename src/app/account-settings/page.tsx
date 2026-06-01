@@ -166,8 +166,11 @@ type User = {
 export default function AccountSettingsPage() {
   const router = useRouter();
   const { updateCurrentUser } = useCurrentUser();
+  const iconInputRef = useRef<HTMLInputElement>(null);
   const [user, setUser] = useState<User | null>(null);
   const [showModal, setShowModal] = useState(false);
+  const [iconErrorMessage, setIconErrorMessage] = useState("");
+  const [isUploadingIcon, setIsUploadingIcon] = useState(false);
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -244,6 +247,50 @@ export default function AccountSettingsPage() {
     }
   };
 
+  const handleIconFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file || !user) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    setIsUploadingIcon(true);
+    setIconErrorMessage("");
+
+    try {
+      const res = await fetchWithAuth(`/api/users/${user.id}/icon`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const data: { message?: string } = await res.json().catch(() => ({}));
+        throw new Error(data.message ?? "画像のアップロードに失敗しました");
+      }
+
+      const data: User = await res.json();
+      const iconImage = data.iconImage
+        ? `${data.iconImage}?t=${Date.now()}`
+        : data.iconImage;
+
+      setUser({ ...data, iconImage });
+      updateCurrentUser({ ...data, iconImage });
+    } catch (error) {
+      setIconErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "画像のアップロードに失敗しました"
+      );
+    } finally {
+      setIsUploadingIcon(false);
+
+      if (iconInputRef.current) {
+        iconInputRef.current.value = "";
+      }
+    }
+  };
+
   return (
     <>
       <main className="flex flex-1 items-center justify-center">
@@ -253,7 +300,34 @@ export default function AccountSettingsPage() {
           </h1>
 
           <div className="mt-8 flex w-full max-w-md flex-col items-center">
-            {user && <UserAvatar user={user} size="lg" />}
+            <div className="relative">
+              {user && <UserAvatar user={user} size="lg" />}
+
+              <button
+                type="button"
+                onClick={() => iconInputRef.current?.click()}
+                disabled={!user || isUploadingIcon}
+                aria-label="アイコン画像を変更"
+                className="absolute bottom-0 right-0 flex size-10 cursor-pointer items-center justify-center rounded-full border border-white/20 bg-[#13224a] text-white transition-colors hover:border-white/40 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {editIcon}
+              </button>
+            </div>
+
+            <input
+              ref={iconInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={handleIconFileChange}
+            />
+
+            <p
+              role={iconErrorMessage ? "alert" : undefined}
+              className={`mt-2 min-h-[20px] text-sm ${iconErrorMessage ? "text-red-400" : "text-transparent"}`}
+            >
+              {iconErrorMessage || "\u00A0"}
+            </p>
 
             <div className="mt-5 w-[80%]">
               <button
