@@ -4,16 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import EyeIcon from "@/components/EyeIcon";
-import VerificationCodeForm from "@/components/VerificationCodeForm";
+// OTP認証を再開する場合はコメントアウトを戻す
+// import VerificationCodeForm from "@/components/VerificationCodeForm";
 import WindowPanel from "@/components/WindowPanel";
-import { useResendCooldown } from "@/hooks/useResendCooldown";
+// import { useResendCooldown } from "@/hooks/useResendCooldown";
 import {
   validateConfirmPassword,
   validateEmail,
   validateNewPassword,
   removePasswordSpaces,
   removeUserNameSpaces,
-  validateVerificationCode,
+  // validateVerificationCode,
   validateUserName,
   type ValidationErrors,
 } from "@/lib/validation";
@@ -44,7 +45,8 @@ function validateRegister(
 export default function RegisterForm() {
   const router = useRouter();
 
-  const [step, setStep] = useState<"register" | "verify">("register");
+  // OTP認証を再開する場合はコメントアウトを戻す
+  // const [step, setStep] = useState<"register" | "verify">("register");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -52,15 +54,15 @@ export default function RegisterForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [verificationCode, setVerificationCode] = useState("");
+  // const [verificationCode, setVerificationCode] = useState("");
 
   const [errors, setErrors] = useState<ValidationErrors>({});
-  const [successMessage, setSuccessMessage] = useState("");
-  const [otpLimitMessage, setOtpLimitMessage] = useState("");
+  // const [successMessage, setSuccessMessage] = useState("");
+  // const [otpLimitMessage, setOtpLimitMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isResending, setIsResending] = useState(false);
-  const { resendCooldown, resendSuccess, startResendCooldown } =
-    useResendCooldown();
+  // const [isResending, setIsResending] = useState(false);
+  // const { resendCooldown, resendSuccess, startResendCooldown } =
+  //   useResendCooldown();
 
   async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -78,10 +80,20 @@ export default function RegisterForm() {
 
     setIsSubmitting(true);
     setErrors({});
-    setSuccessMessage("");
+    // OTP認証を再開する場合はコメントアウトを戻す
+    // setSuccessMessage("");
 
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/auth/otp/register`, {
+      // OTP認証を再開する場合は、下記の認証コード発行APIを使用する。
+      // const res = await fetch(`${getApiBaseUrl()}/api/auth/otp/register`, {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   credentials: "include",
+      //   body: JSON.stringify({ name, email, password }),
+      // });
+
+      // OTP認証を一時停止中のため、認証コード発行APIは呼ばずに本登録へ進める。
+      const res = await fetch(`${getApiBaseUrl()}/api/auth/registerUser`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -105,13 +117,20 @@ export default function RegisterForm() {
         return;
       }
 
-      setStep("verify");
+      // OTP認証を再開する場合は、登録完了ではなく認証コード入力へ進める。
+      // setStep("verify");
+      // return;
+
+      router.push("/login");
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  /*
+  OTP認証を再開する場合はコメントアウトを戻す
 
   async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -206,27 +225,22 @@ export default function RegisterForm() {
       setIsResending(false);
     }
   }
+  */
 
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto">
-      <div
-        className={
-          step === "verify"
-            ? "[&>section]:min-h-[400px] [&>section]:min-w-[535px]"
-            : "[&>section]:min-h-[500px] [&>section]:min-w-[535px]"
-        }
-      >
+      <div className="[&>section]:min-h-[500px] [&>section]:min-w-[535px]">
         <WindowPanel>
           <h1 className="text-3xl font-bold tracking-wide text-white">
-            {step === "verify" ? "認証コードを入力" : "新規登録"}
+            新規登録
+            {/* OTP認証を再開する場合: {step === "verify" ? "認証コードを入力" : "新規登録"} */}
           </h1>
 
-          {step === "register" ? (
-            <form
-              onSubmit={handleRegister}
-              noValidate
-              className="mt-6 flex w-full max-w-sm flex-col gap-5"
-            >
+          <form
+            onSubmit={handleRegister}
+            noValidate
+            className="mt-6 flex w-full max-w-sm flex-col gap-5"
+          >
               {/* 通信エラー */}
               <p
                 role={errors.general ? "alert" : undefined}
@@ -353,8 +367,11 @@ export default function RegisterForm() {
                   </span>
                 </Link>
               </p>
-            </form>
-          ) : (
+          </form>
+          {/*
+            OTP認証を再開する場合は、上のフォームを step === "register" の分岐に戻し、
+            step === "verify" で下記を表示する。
+
             <VerificationCodeForm
               verificationCode={verificationCode}
               onCodeChange={setVerificationCode}
@@ -368,7 +385,7 @@ export default function RegisterForm() {
               resendCooldown={resendCooldown}
               resendSuccess={resendSuccess}
             />
-          )}
+          */}
         </WindowPanel>
       </div>
     </main>

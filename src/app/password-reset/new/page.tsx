@@ -31,6 +31,7 @@ function validatePasswords(password: string, confirmPassword: string): Validatio
 export default function PasswordResetNewPage() {
   const router = useRouter();
 
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -47,16 +48,21 @@ export default function PasswordResetNewPage() {
 
     async function checkSession() {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/verify-session`, {
-          method: "GET",
-          credentials: "include",
-        });
+        // OTP認証を再開する場合は、下記のCookieセッション確認を使用する。
+        // const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/verify-session`, {
+        //   method: "GET",
+        //   credentials: "include",
+        // });
+
+        const storedEmail = sessionStorage.getItem("passwordResetEmail");
 
         if (!mounted) return;
 
-        if (!res.ok) {
+        // OTP認証を再開する場合は、storedEmail ではなく !res.ok を確認する。
+        // if (!res.ok) {
+        if (!storedEmail) {
           setIsSessionInvalid(true);
-          setErrors({ general: "有効期限が切れています 再度お試しください" });
+          setErrors({ general: "再度メールアドレスを入力してください" });
 
           setTimeout(() => {
             if (mounted) {
@@ -66,6 +72,8 @@ export default function PasswordResetNewPage() {
 
           return;
         }
+
+        setEmail(storedEmail);
       } catch {
         if (mounted) {
           setErrors({ general: "通信エラーが発生しました" });
@@ -110,12 +118,20 @@ export default function PasswordResetNewPage() {
     setSuccessMessage("");
 
     try {
-      // emailはクッキーでバックエンドが参照するため送信不要
+      // OTP認証を再開する場合は、Cookieからメールアドレスを参照するため password のみ送信する。
+      // const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/new`, {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   credentials: "include",
+      //   body: JSON.stringify({ password }),
+      // });
+
+      // OTP認証を一時停止中のため、Cookieではなくメールアドレスも送信する。
       const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/new`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (!res.ok) {
@@ -124,6 +140,7 @@ export default function PasswordResetNewPage() {
       }
 
       setSuccessMessage("パスワードを更新しました");
+      sessionStorage.removeItem("passwordResetEmail");
 
       setTimeout(() => {
         router.push("/login");

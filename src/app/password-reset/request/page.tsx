@@ -3,30 +3,32 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import VerificationCodeForm from "@/components/VerificationCodeForm";
+// OTP認証を再開する場合はコメントアウトを戻す
+// import VerificationCodeForm from "@/components/VerificationCodeForm";
 import WindowPanel from "@/components/WindowPanel";
-import { useResendCooldown } from "@/hooks/useResendCooldown";
+// import { useResendCooldown } from "@/hooks/useResendCooldown";
 import {
   validateEmail,
-  validateVerificationCode,
+  // validateVerificationCode,
   type ValidationErrors,
 } from "@/lib/validation";
 import Link from "next/link";
-import { getApiBaseUrl } from "@/lib/apiConfig";
+// import { getApiBaseUrl } from "@/lib/apiConfig";
 
 export default function PasswordResetRequestPage() {
-  const [step, setStep] = useState<"request" | "verify">("request");
+  // OTP認証を再開する場合はコメントアウトを戻す
+  // const [step, setStep] = useState<"request" | "verify">("request");
 
   const [email, setEmail] = useState("");
-  const [verificationCode, setVerificationCode] = useState("");
+  // const [verificationCode, setVerificationCode] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isResending, setIsResending] = useState(false);
-  const { resendCooldown, resendSuccess, startResendCooldown } =
-    useResendCooldown();
+  // const [isResending, setIsResending] = useState(false);
+  // const { resendCooldown, resendSuccess, startResendCooldown } =
+  //   useResendCooldown();
 
   const [errors, setErrors] = useState<ValidationErrors>({});
-  const [otpLimitMessage, setOtpLimitMessage] = useState("");
+  // const [otpLimitMessage, setOtpLimitMessage] = useState("");
 
   const router = useRouter();
 
@@ -44,31 +46,40 @@ export default function PasswordResetRequestPage() {
     setErrors({});
 
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/request`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email }),
-      });
+      // OTP認証を再開する場合は、下記の認証コード発行APIを使用する。
+      // const res = await fetch(`${getApiBaseUrl()}/api/auth/password-reset/request`, {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   credentials: "include",
+      //   body: JSON.stringify({ email }),
+      // });
 
-      if (!res.ok) {
-        if (res.status === 404) {
-          setErrors({ email: "登録されていないメールアドレスです" });
-          return;
-        }
+      // if (!res.ok) {
+      //   if (res.status === 404) {
+      //     setErrors({ email: "登録されていないメールアドレスです" });
+      //     return;
+      //   }
 
-        setErrors({ general: "送信に失敗しました" });
-        return;
-      }
+      //   setErrors({ general: "送信に失敗しました" });
+      //   return;
+      // }
 
-      setStep("verify");
-      setErrors({});
+      // setStep("verify");
+      // setErrors({});
+      // return;
+
+      // OTP認証を一時停止中のため、認証コード発行APIは呼ばずに次画面へ進める。
+      sessionStorage.setItem("passwordResetEmail", email);
+      router.push("/password-reset/new");
     } catch {
       setErrors({ general: "通信エラーが発生しました" });
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  /*
+  OTP認証を再開する場合はコメントアウトを戻す
 
   async function handleVerify(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -145,21 +156,22 @@ export default function PasswordResetRequestPage() {
       setIsResending(false);
     }
   }
+  */
 
   return (
     <main className="flex flex-1 items-center justify-center overflow-auto">
       <div className="[&>section]:min-h-[400px] [&>section]:min-w-[535px]">
         <WindowPanel>
           <h1 className="text-3xl font-bold tracking-wide text-white">
-            {step === "verify" ? "認証コードを入力" : "パスワード再設定"}
+            パスワード再設定
+            {/* OTP認証を再開する場合: {step === "verify" ? "認証コードを入力" : "パスワード再設定"} */}
           </h1>
 
-          {step === "request" ? (
-            <form
-              onSubmit={handleRequest}
-              noValidate
-              className="mt-6 flex w-full max-w-sm flex-col gap-5"
-            >
+          <form
+            onSubmit={handleRequest}
+            noValidate
+            className="mt-6 flex w-full max-w-sm flex-col gap-5"
+          >
               
               {/* 通信エラー */}
               <p
@@ -209,8 +221,11 @@ export default function PasswordResetRequestPage() {
                   </span>
                 </Link>
               </p>
-            </form>
-          ) : (
+          </form>
+          {/*
+            OTP認証を再開する場合は、上のフォームを step === "request" の分岐に戻し、
+            step === "verify" で下記を表示する。
+
             <VerificationCodeForm
               verificationCode={verificationCode}
               onCodeChange={setVerificationCode}
@@ -223,7 +238,7 @@ export default function PasswordResetRequestPage() {
               resendCooldown={resendCooldown}
               resendSuccess={resendSuccess}
             />
-          )}
+          */}
         </WindowPanel>
       </div>
     </main>
