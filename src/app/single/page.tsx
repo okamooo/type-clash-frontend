@@ -210,7 +210,7 @@ export default function SingleModePage() {
           finalTotal > 0
             ? ((finalCorrect / finalTotal) * 100).toFixed(1)
             : "0.0";
-        router.push(
+        router.replace(
           `/result/SingleResult?score=${finalScore}&accuracy=${accuracy}&correct=${finalCorrect}&total=${finalTotal}`,
         );
       };
