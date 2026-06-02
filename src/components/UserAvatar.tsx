@@ -1,4 +1,5 @@
 import type { CurrentUser } from "@/contexts/CurrentUserContext";
+import { getApiAssetUrl } from "@/lib/apiConfig";
 
 type UserAvatarSize = "sm" | "lg";
 
@@ -18,14 +19,16 @@ export default function UserAvatar({
   size = "sm",
   className = "",
 }: UserAvatarProps) {
+  const iconImageSrc = user.iconImage ? getApiAssetUrl(user.iconImage) : null;
+
   return (
     <div
       className={`flex items-center justify-center overflow-hidden rounded-full border-white bg-[#123f7a] ${sizeClassNameBySize[size]} ${className}`}
     >
-      {user.iconImage ? (
+      {iconImageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={user.iconImage}
+          src={iconImageSrc}
           alt=""
           className="size-full object-cover"
         />
