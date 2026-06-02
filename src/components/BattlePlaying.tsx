@@ -5,6 +5,12 @@ import { MagicWord, BattleMessage, OpponentInfo } from "@/types/battle";
 import { Client } from "@stomp/stompjs";
 import UserAvatar from "@/components/UserAvatar";
 import MessagePanel from "@/components/MessagePanel";
+import {
+  getRemainingRomajiDisplay,
+  isRomajiComplete,
+  isValidRomajiAppend,
+  normalizeRomajiKey,
+} from "@/lib/romaji";
 
 interface BattlePlayingProps {
   matchId: number;
@@ -62,8 +68,9 @@ const BattlePlaying = forwardRef<BattlePlayingHandle, BattlePlayingProps>(functi
   });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const currentWord = words[currentWordIndex % words.length];
+  const currentWord = words.length > 0 ? words[currentWordIndex % words.length] : null;
 
   useEffect(() => {
     statsRef.current = { score, typedChars, missCount, myHp, opponentHp };
@@ -168,16 +175,36 @@ const BattlePlaying = forwardRef<BattlePlayingHandle, BattlePlayingProps>(functi
     };
   }, [battleEndsAt, handleFinish, sendUpdate]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  useEffect(() => {
+    const focusTimer = setTimeout(() => inputRef.current?.focus(), 0);
+    return () => clearTimeout(focusTimer);
+  }, []);
+
+  useEffect(() => {
     if (isFinished || finishedRef.current) return;
+
+    const focusInterval = setInterval(() => {
+      if (document.activeElement !== inputRef.current) {
+        inputRef.current?.focus();
+      }
+    }, 500);
+
+    return () => clearInterval(focusInterval);
+  }, [isFinished]);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isFinished || finishedRef.current || !currentWord) return;
     if (e.key.length !== 1) return;
 
-    const targetChar = currentWord.magicTarget[currentInput.length];
+    const char = normalizeRomajiKey(e.key);
+    if (!char) return;
 
-    if (e.key === targetChar) {
-      const nextInput = currentInput + e.key;
+    const target = currentWord.magicTarget;
 
-      if (nextInput === currentWord.magicTarget) {
+    if (isValidRomajiAppend(currentInput, char, target)) {
+      const nextInput = currentInput + char;
+
+      if (isRomajiComplete(nextInput, target)) {
         const damageAmount = currentWord.magicTarget.length;
 
         statsRef.current = {
@@ -217,7 +244,21 @@ const BattlePlaying = forwardRef<BattlePlayingHandle, BattlePlayingProps>(functi
   };
 
   return (
-    <div className="flex w-full flex-col items-center gap-8" onKeyDown={handleKeyDown} tabIndex={0} autoFocus>
+    <div className="relative flex w-full flex-col items-center gap-8">
+      <input
+        ref={inputRef}
+        autoFocus
+        type="text"
+        onKeyDown={handleKeyDown}
+        value=""
+        readOnly
+        inputMode="url"
+        autoCapitalize="none"
+        autoComplete="off"
+        spellCheck={false}
+        aria-label="タイピング入力"
+        className="absolute inset-0 h-full w-full cursor-default bg-transparent opacity-0 outline-none"
+      />
       <div className="flex w-full justify-between items-center px-4">
         <div className="text-2xl font-bold text-yellow-400">
           TIME: {timeLeft}s
@@ -230,6 +271,7 @@ const BattlePlaying = forwardRef<BattlePlayingHandle, BattlePlayingProps>(functi
       <div className="grid grid-cols-2 gap-8 w-full">
         <div className="flex flex-col items-center gap-4">
           <UserAvatar user={currentUser} size="lg" />
+          <p className="text-lg font-bold text-white">{currentUser.name}</p>
           <div className="w-full bg-gray-700 h-6 rounded-full overflow-hidden border-2 border-white">
             <div
               className="bg-green-500 h-full transition-all duration-300"
@@ -241,6 +283,7 @@ const BattlePlaying = forwardRef<BattlePlayingHandle, BattlePlayingProps>(functi
 
         <div className="flex flex-col items-center gap-4">
           <UserAvatar user={opponent} size="lg" />
+          <p className="text-lg font-bold text-white">{opponent.name}</p>
           <div className="w-full bg-gray-700 h-6 rounded-full overflow-hidden border-2 border-white">
             <div
               className="bg-red-500 h-full transition-all duration-300"
@@ -251,18 +294,22 @@ const BattlePlaying = forwardRef<BattlePlayingHandle, BattlePlayingProps>(functi
         </div>
       </div>
 
-      <MessagePanel className="w-full min-h-[160px] flex flex-col items-center justify-center gap-2">
-        <p className="text-3xl text-yellow-300 font-bold">{currentWord.magicText}</p>
-        <p className="text-xl text-gray-400">{currentWord.magicReading}</p>
-        <div className="text-4xl mt-4 font-mono tracking-widest">
-          <span className="text-white">{currentInput}</span>
-          <span className="text-gray-600">{currentWord.magicTarget.slice(currentInput.length)}</span>
-        </div>
+      <MessagePanel className="flex w-full min-w-0 min-h-[160px] flex-col items-center justify-center gap-2">
+        {currentWord ? (
+          <>
+            <p className="text-3xl text-yellow-300 font-bold">{currentWord.magicText}</p>
+            <p className="text-xl text-gray-400">{currentWord.magicReading}</p>
+            <p className="mt-4 w-full max-w-full px-2 text-center font-mono text-2xl leading-relaxed break-all sm:text-3xl lg:text-4xl">
+              <span className="text-white">{currentInput}</span>
+              <span className="text-gray-600">
+                {getRemainingRomajiDisplay(currentWord.magicTarget, currentInput)}
+              </span>
+            </p>
+          </>
+        ) : (
+          <p className="text-xl text-slate-400">ワードを よみこみちゅう...</p>
+        )}
       </MessagePanel>
-
-      <p className="text-sm text-slate-500 animate-pulse">
-        ※ 画面を クリックして キーボードで 入力してください
-      </p>
     </div>
   );
 });
