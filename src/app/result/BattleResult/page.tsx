@@ -8,6 +8,7 @@ import MessagePanel from "@/components/MessagePanel";
 import TypewriterText from "@/components/TypewriterText";
 import UserAvatar from "@/components/UserAvatar";
 import WindowPanel from "@/components/WindowPanel";
+import { useCurrentUser } from "@/contexts/CurrentUserContext";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
 type BattlePlayerRole = "player1" | "player2";
@@ -309,6 +310,7 @@ function BattlePlayerPanel({
 
 function BattleResultContent() {
   const router = useRouter();
+  const { setCanEnterBattle } = useCurrentUser();
   const searchParams = useSearchParams();
   const resultId = searchParams.get("id");
 
@@ -386,6 +388,14 @@ function BattleResultContent() {
     markComplete(winnerCompleteKey);
   }, [markComplete, winnerCompleteKey]);
 
+  const enableBattleRetry = useCallback(() => {
+    setCanEnterBattle(true);
+  }, [setCanEnterBattle]);
+
+  const handleRetry = useCallback(() => {
+    router.push("/battle");
+  }, [router]);
+
   return (
     <main className="flex flex-1 items-center justify-center">
       <WindowPanel className="min-h-168">
@@ -443,7 +453,9 @@ function BattleResultContent() {
               <div className="mt-6 flex flex-wrap gap-4">
                 <button
                   type="button"
-                  onClick={() => router.push("/")}
+                  onMouseDown={enableBattleRetry}
+                  onTouchStart={enableBattleRetry}
+                  onClick={handleRetry}
                   className="self-start text-base transition-colors hover:text-yellow-200 sm:text-xl"
                 >
                   ▶ 再挑戦

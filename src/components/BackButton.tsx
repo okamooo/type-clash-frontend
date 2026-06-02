@@ -2,13 +2,17 @@
 
 import { useRouter } from "next/navigation";
 
-export default function BackButton() {
+type BackButtonProps = {
+  href?: string;
+};
+
+export default function BackButton({ href = "/home" }: BackButtonProps) {
   const router = useRouter();
 
   return (
     <button
       type="button"
-      onClick={() => router.back()}
+      onClick={() => router.push(href)}
       className="mt-8 self-start text-base transition-colors hover:text-yellow-200 sm:text-xl"
     >
       ◀ 戻る
