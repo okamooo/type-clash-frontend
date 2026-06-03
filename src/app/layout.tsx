@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DotGothic16, Geist, Geist_Mono as GeistMono } from "next/font/google";
+import AuthSessionInvalidModal from "@/components/AuthSessionInvalidModal";
 import CommonHeader from "@/components/CommonHeader";
 import { CurrentUserProvider } from "@/contexts/CurrentUserContext";
 import "./globals.css";
@@ -41,6 +42,7 @@ export default function RootLayout({
             <CommonHeader />
             {children}
           </div>
+          <AuthSessionInvalidModal />
         </CurrentUserProvider>
       </body>
     </html>

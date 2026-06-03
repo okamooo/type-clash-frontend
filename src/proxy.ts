@@ -37,11 +37,6 @@ export function proxy(request: NextRequest) {
   }
 
   const hasAccessToken = Boolean(request.cookies.get(ACCESS_TOKEN_COOKIE_NAME));
-
-  if (hasAccessToken && AUTH_HOME_REDIRECT_PATHS.has(pathname)) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
   if (!hasAccessToken && !PUBLIC_PATHS.has(pathname) && !AUTH_HOME_REDIRECT_PATHS.has(pathname)) {
     return NextResponse.redirect(new URL("/", request.url));
   }
