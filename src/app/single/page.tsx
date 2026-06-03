@@ -204,6 +204,12 @@ export default function SingleModePage() {
           });
         } catch (error) {
           console.error("スコアの保存に失敗しました:", error);
+          if (
+            error instanceof Error &&
+            error.message === "Authentication session is invalid"
+          ) {
+            return;
+          }
         }
 
         const accuracy =

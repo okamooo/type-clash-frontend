@@ -26,7 +26,7 @@ export default function AuthSessionInvalidModal() {
   }
 
   const handleConfirm = () => {
-    window.location.href = "/";
+    window.location.replace("/");
   };
 
   return (
@@ -36,20 +36,22 @@ export default function AuthSessionInvalidModal() {
       aria-labelledby="auth-session-invalid-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
     >
-      <WindowPanel className="max-w-lg p-6 sm:p-8">
+      <WindowPanel className="max-w-md p-5 text-center sm:p-6">
         <h2
           id="auth-session-invalid-title"
-          className="text-2xl font-bold tracking-wide text-white"
+          className="text-xl font-bold tracking-wide text-white"
         >
-          ログイン状態を確認できませんでした
+          ログイン状態を確認できません
         </h2>
-        <p className="mt-5 text-left text-base leading-7 text-slate-200">
+        <p className="mt-3 text-base leading-7 text-slate-300">
+          セッションの有効期限が切れました
+          <br />
           再度ログインしてください
         </p>
         <button
           type="button"
           onClick={handleConfirm}
-          className="mt-8 border border-slate-400 bg-[#0d1b3e]/60 px-6 py-2 text-lg font-bold tracking-[0.03em] text-white hover:border-yellow-200 hover:text-yellow-200"
+          className="mt-6 w-[69%] border border-slate-400 bg-[#0d1b3e]/60 px-6 py-2 text-base font-bold tracking-[0.03em] text-white hover:border-yellow-200 hover:text-yellow-200"
         >
           OK
         </button>
