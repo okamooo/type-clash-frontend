@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import WindowPanel from "@/components/WindowPanel";
-import { getApiBaseUrl } from "@/lib/apiConfig";
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
 type History = {
   finishedAt: string;
@@ -53,8 +53,8 @@ export default function HistoryPage() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-        const res = await fetch(
-          `${getApiBaseUrl()}/api/single-results/history?userId=${USER_ID}`,
+        const res = await fetchWithAuth(
+          `/api/single-results/history?userId=${USER_ID}`,
           { signal: controller.signal }
         );
 

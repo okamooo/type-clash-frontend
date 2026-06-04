@@ -1,5 +1,8 @@
 import { getApiBaseUrl } from "@/lib/apiConfig";
 
+const AUTH_SESSION_INVALID_EVENT = "auth-session-invalid";
+let isAuthSessionInvalidNotified = false;
+
 export async function fetchWithAuth(path: string, options?: RequestInit): Promise<Response> {
   const res = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
@@ -7,8 +10,12 @@ export async function fetchWithAuth(path: string, options?: RequestInit): Promis
   });
 
   if (res.status === 401 || res.status === 403 || res.status === 503) {
-    window.location.href = "/login?reason=expired";
-    throw new Error("Redirecting to login");
+    if (typeof window !== "undefined" && !isAuthSessionInvalidNotified) {
+      isAuthSessionInvalidNotified = true;
+      window.dispatchEvent(new Event(AUTH_SESSION_INVALID_EVENT));
+    }
+
+    throw new Error("Authentication session is invalid");
   }
 
   return res;
