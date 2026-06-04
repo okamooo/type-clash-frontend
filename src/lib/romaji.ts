@@ -1,8 +1,8 @@
 /**
  * ローマ字タイピング判定（シングル・対戦共通）
  *
- * - DB の romaji_target はキーボード表記（shi, 助詞「は」も ha）を正とする
- * - 日本式（si, ti 等）やヘボン式の助詞 wa 入力を許容する
+ * - DB の romaji_target を唯一の正とする（かな「は」→ ha、「わ」→ wa は DB 生成時に固定）
+ * - 日本式（si, ti 等）の別表記のみ許容（ha/wa の入力ゆれは許さない）
  * - 拗音はし・ち行＋じ行（ワープロ zya 系）の別表記を許容（きゃ＝kya 等は表記が1種類のため同一）
  */
 
@@ -67,11 +67,6 @@ function areSyllableAliases(a: string, b: string): boolean {
   const setB = ALIAS_LOOKUP.get(aliasKey(b));
   if (setA && setB && setA === setB) return true;
   return false;
-}
-
-/** 助詞など: 正解が ha のときヘボン式 wa も許容 */
-function areHaWaEquivalent(typed: string, target: string): boolean {
-  return typed === "wa" && target === "ha";
 }
 
 function isDifferentLengthAliasPair(a: string, b: string): boolean {
@@ -152,7 +147,6 @@ function areChunksEquivalent(
 
   if (typedChunk.length === targetChunk.length) {
     if (areSyllableAliases(typedChunk, targetChunk)) return true;
-    if (areHaWaEquivalent(typedChunk, targetChunk)) return true;
     return false;
   }
 
