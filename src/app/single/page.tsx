@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import WindowPanel from "@/components/WindowPanel";
 import BackButton from "@/components/BackButton";
-import { getApiBaseUrl } from "@/lib/apiConfig";
+import { fetchWithAuth } from "@/lib/fetchWithAuth";
 
 interface Word {
   id: number;
@@ -52,7 +52,7 @@ export default function SingleModePage() {
   useEffect(() => {
     const fetchWords = async () => {
       try {
-        const response = await fetch(`${getApiBaseUrl()}/api/words`);
+        const response = await fetchWithAuth("/api/words");
         if (!response.ok) throw new Error("Fetch failed");
         const data = await response.json();
         setWords(data);
@@ -192,7 +192,7 @@ export default function SingleModePage() {
         const finalScore = calculateCurrentScore(finalCorrect, finalTotal);
 
         try {
-          await fetch(`${getApiBaseUrl()}/api/single-results`, {
+          await fetchWithAuth("/api/single-results", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -204,6 +204,12 @@ export default function SingleModePage() {
           });
         } catch (error) {
           console.error("スコアの保存に失敗しました:", error);
+          if (
+            error instanceof Error &&
+            error.message === "Authentication session is invalid"
+          ) {
+            return;
+          }
         }
 
         const accuracy =
