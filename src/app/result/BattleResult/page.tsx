@@ -15,6 +15,8 @@ type BattlePlayerRole = "player1" | "player2";
 
 type ResultPlayer = Readonly<{
   id: number;
+  name: string;
+  iconImage: string | null;
   role: BattlePlayerRole;
   score: number;
   accuracyRate: number;
@@ -23,80 +25,16 @@ type ResultPlayer = Readonly<{
   isWinner: boolean;
 }>;
 
+type ResultPlayerDisplay = Readonly<{
+  name: string;
+  iconImage: string | null;
+}>;
+
 type Result = Readonly<{
   id: number;
   winnerId: number | null;
   players: ReadonlyArray<ResultPlayer>;
 }>;
-
-const mockWinBattleResult: Result = {
-  id: 1,
-  winnerId: 1,
-  players: [
-    {
-      id: 1,
-      role: "player1",
-      score: 100,
-      accuracyRate: 89,
-      typedChars: 240,
-      missCount: 3,
-      isWinner: true,
-    },
-    {
-      id: 2,
-      role: "player2",
-      score: 80,
-      accuracyRate: 90,
-      typedChars: 218,
-      missCount: 5,
-      isWinner: false,
-    },
-  ],
-};
-
-const mockDrawBattleResult: Result = {
-  id: 2,
-  winnerId: null,
-  players: [
-    {
-      id: 1,
-      role: "player1",
-      score: 100,
-      accuracyRate: 89,
-      typedChars: 240,
-      missCount: 3,
-      isWinner: false,
-    },
-    {
-      id: 2,
-      role: "player2",
-      score: 100,
-      accuracyRate: 89,
-      typedChars: 240,
-      missCount: 3,
-      isWinner: false,
-    },
-  ],
-};
-
-// API接続時は削除する開発用モックデータ。
-const mockBattleResults = {
-  win: mockWinBattleResult,
-  draw: mockDrawBattleResult,
-} as const;
-const mockBattleResult = mockBattleResults.draw;
-
-// API接続時は対戦相手情報から取得する。
-const battlePlayers = {
-  player1: {
-    name: "Player 1",
-    iconImage: null,
-  },
-  player2: {
-    name: "Player 2",
-    iconImage: null,
-  },
-} as const;
 
 // 各項目（スコア・正答率など）の表示完了状態を管理するためのキー
 type CompletionKeys = Readonly<{
@@ -108,7 +46,7 @@ type CompletionKeys = Readonly<{
 
 type BattlePlayerPanelProps = Readonly<{
   className: string;
-  player: (typeof battlePlayers)[keyof typeof battlePlayers];
+  player: ResultPlayerDisplay;
   score: string;
   accuracy: string;
   typedChars: string;
@@ -146,7 +84,7 @@ function getWinnerLabel(result: Result | null) {
     return "引き分け、、、";
   }
 
-  return `${battlePlayers[winner.role].name} の勝利`;
+  return `${winner.name} の勝利`;
 }
 
 function getPlayerResultClassName(
@@ -207,7 +145,7 @@ function buildBattlePlayerResults(
 
     return {
       playerId: playerKey,
-      player: battlePlayers[player.role],
+      player: { name: player.name, iconImage: player.iconImage },
       className: getPlayerResultClassName(result, isWinnerVisible, player),
       score: String(player.score),
       accuracy: `${player.accuracyRate}%`,
@@ -314,8 +252,11 @@ function BattleResultContent() {
   const searchParams = useSearchParams();
   const resultId = searchParams.get("id");
 
-  // API接続時は初期値を null に戻す。
   const [result, setResult] = useState<Result | null>(null);
+  const [isLoading, setIsLoading] = useState(() => Boolean(resultId));
+  const [fetchError, setFetchError] = useState<string | null>(() =>
+    resultId ? null : "対戦IDが 指定されていません。",
+  );
   const [completedPanels, setCompletedPanels] = useState<
     Readonly<Record<string, boolean>>
   >({});
@@ -325,6 +266,10 @@ function BattleResultContent() {
     if (!resultId) return;
 
     const fetchResult = async () => {
+      setIsLoading(true);
+      setFetchError(null);
+      setResult(null);
+
       try {
         const res = await fetchWithAuth(`/api/battle-results?id=${resultId}`, {
           method: "GET",
@@ -337,7 +282,9 @@ function BattleResultContent() {
         setResult(data);
       } catch (err) {
         console.error("Fetch error:", err);
-        setResult(mockBattleResult);
+        setFetchError("けっかの 取得に しっぱいしました。");
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -395,6 +342,37 @@ function BattleResultContent() {
   const handleRetry = useCallback(() => {
     router.push("/battle");
   }, [router]);
+
+  if (isLoading) {
+    return (
+      <main className="flex flex-1 items-center justify-center">
+        <WindowPanel className="min-h-168">
+          <p className="py-20 text-center text-xl text-slate-400 animate-pulse">
+            けっかを よみこみちゅう...
+          </p>
+        </WindowPanel>
+      </main>
+    );
+  }
+
+  if (fetchError || !result) {
+    return (
+      <main className="flex flex-1 items-center justify-center">
+        <WindowPanel className="min-h-168">
+          <MessagePanel className="flex flex-col items-center gap-6 py-12">
+            <p className="text-xl text-red-300">{fetchError ?? "けっかが みつかりません。"}</p>
+            <button
+              type="button"
+              onClick={() => router.push("/home")}
+              className="text-base transition-colors hover:text-yellow-200 sm:text-xl"
+            >
+              ▶ home
+            </button>
+          </MessagePanel>
+        </WindowPanel>
+      </main>
+    );
+  }
 
   return (
     <main className="flex flex-1 items-center justify-center">

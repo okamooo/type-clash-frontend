@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import WindowPanel from "@/components/WindowPanel";
 import BackButton from "@/components/BackButton";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
+import {
+  getRemainingRomajiDisplay,
+  isRomajiComplete,
+  isValidRomajiAppend,
+  normalizeRomajiKey,
+} from "@/lib/romaji";
 
 interface Word {
   id: number;
@@ -37,16 +43,6 @@ export default function SingleModePage() {
   const userInputRef = useRef("");
   const correctCountRef = useRef(0);
   const totalInputRef = useRef(0);
-
-  // --- 全角英数を半角に変換する正規化関数 ---
-  const normalizeInput = (value: string) => {
-    return value
-      .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (char) =>
-        String.fromCharCode(char.charCodeAt(0) - 0xfee0),
-      )
-      .replace(/[ー]/g, "-")
-      .replace(/[^a-zA-Z0-9-]/g, "");
-  };
 
   // --- 1. ワード全件取得 ---
   useEffect(() => {
@@ -140,18 +136,19 @@ export default function SingleModePage() {
     // 1文字の入力のみ処理（特殊キーなどは無視）
     if (e.key.length !== 1) return;
 
-    const char = normalizeInput(e.key.toLowerCase());
+    const char = normalizeRomajiKey(e.key);
     if (!char) return;
 
     const target = currentWord.romajiTarget;
-    const nextInput = userInputRef.current + char;
+    const currentInput = userInputRef.current;
 
     // 入力総数を更新
     totalInputRef.current += 1;
     const currentTotal = totalInputRef.current;
     setTotalInput(currentTotal);
 
-    if (target.startsWith(nextInput)) {
+    if (isValidRomajiAppend(currentInput, char, target)) {
+      const nextInput = currentInput + char;
       // 正解
       userInputRef.current = nextInput;
       setUserInput(nextInput);
@@ -163,7 +160,7 @@ export default function SingleModePage() {
       const newScore = calculateCurrentScore(currentCorrect, currentTotal);
       setDisplayScore(newScore);
 
-      if (nextInput === target) {
+      if (isRomajiComplete(nextInput, target)) {
         // 少しディレイを置いて次のワードへ（打ち切った感のため）
         setTimeout(setNextWord, 50);
       }
@@ -254,6 +251,11 @@ export default function SingleModePage() {
     }
   }, [isStarted, isFinished]);
 
+  const remainingRomaji = useMemo(() => {
+    if (!currentWord) return "";
+    return getRemainingRomajiDisplay(currentWord.romajiTarget, userInput);
+  }, [currentWord, userInput]);
+
   return (
     <main className="flex flex-1 items-center justify-center p-4">
       <WindowPanel>
@@ -278,7 +280,7 @@ export default function SingleModePage() {
               </button>
             </div>
           ) : (
-            <div className="flex w-full flex-col items-center">
+            <div className="flex w-full min-w-0 flex-col items-center">
               <div className="mb-10 grid w-full grid-cols-3 gap-4 border-b pb-4">
                 <div className="flex flex-col">
                   <span className="text-xs text-slate-400">TIME</span>
@@ -303,23 +305,21 @@ export default function SingleModePage() {
                 </div>
               </div>
 
-              <div className="relative flex flex-col items-center py-10 w-full min-h-[240px]">
+              <div className="relative flex w-full min-w-0 flex-col items-center py-10 min-h-[240px]">
                 {currentWord && (
                   <>
-                    <div className="text-xl text-slate-400">
+                    <p className="w-full max-w-full px-2 text-center text-lg leading-relaxed text-slate-400 break-words sm:text-xl">
                       {currentWord.kanaReading}
-                    </div>
-                    <div className="mt-2 text-5xl font-bold tracking-widest text-white">
+                    </p>
+                    <p className="mt-2 w-full max-w-full px-2 text-center text-3xl font-bold leading-snug tracking-wide text-white break-words sm:text-4xl lg:text-5xl">
                       {currentWord.displayText}
-                    </div>
-                    <div className="mt-8 text-3xl font-mono tracking-wider">
-                      <span className="text-blue-500 underline decoration-2 underline-offset-8">
+                    </p>
+                    <p className="mt-8 w-full max-w-full px-2 text-center font-mono text-xl leading-relaxed break-all sm:text-2xl lg:text-3xl">
+                      <span className="text-blue-500 underline decoration-2 underline-offset-4 [box-decoration-break:clone]">
                         {userInput}
                       </span>
-                      <span className="text-slate-200">
-                        {currentWord.romajiTarget.slice(userInput.length)}
-                      </span>
-                    </div>
+                      <span className="text-slate-200">{remainingRomaji}</span>
+                    </p>
                   </>
                 )}
                 <input

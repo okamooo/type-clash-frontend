@@ -11,7 +11,12 @@ import BackButton from "@/components/BackButton";
 import UserAvatar from "@/components/UserAvatar";
 import { getApiBaseUrl, getWsBattleUrl } from "@/lib/apiConfig";
 import { fetchWithAuth } from "@/lib/fetchWithAuth";
-import { MagicWord, BattleStatus, OpponentInfo, BattleMessage } from "@/types/battle";
+import {
+  MagicWord,
+  BattleStatus,
+  OpponentInfo,
+  BattleMessage,
+} from "@/types/battle";
 import BattlePlaying, { BattlePlayingHandle } from "@/components/BattlePlaying";
 
 const BATTLE_COUNTDOWN_SECONDS = 3;
@@ -41,13 +46,16 @@ const getLeaveRestUrl = (currentStatus: BattleStatus) => {
 
 export default function BattlePage() {
   const router = useRouter();
-  const { currentUser, updateCurrentUser, canEnterBattle, setCanEnterBattle } = useCurrentUser();
+  const { currentUser, updateCurrentUser, canEnterBattle, setCanEnterBattle } =
+    useCurrentUser();
   const [status, setStatus] = useState<BattleStatus>("searching");
   const [matchId, setMatchId] = useState<number | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
   const [role, setRole] = useState<"player1" | "player2" | null>(null);
   const [words, setWords] = useState<MagicWord[]>([]);
-  const [opponentStatus, setOpponentStatus] = useState<BattleMessage | null>(null);
+  const [opponentStatus, setOpponentStatus] = useState<BattleMessage | null>(
+    null,
+  );
   const [isReady, setIsReady] = useState(false);
   const [countdown, setCountdown] = useState(BATTLE_COUNTDOWN_SECONDS);
   const [battleEndsAt, setBattleEndsAt] = useState<number | null>(null);
@@ -59,22 +67,27 @@ export default function BattlePage() {
 
   const clientRef = useRef<Client | null>(null);
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
-  const battleSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const battleSubscriptionRef = useRef<{ unsubscribe: () => void } | null>(
+    null,
+  );
   const opponentStatusRef = useRef<BattleMessage | null>(null);
   const isSavingRef = useRef(false);
   const battleEndedRef = useRef(false);
   const statusRef = useRef<BattleStatus>("searching");
   const matchIdRef = useRef<number | null>(null);
   const battlePlayingRef = useRef<BattlePlayingHandle>(null);
-  const handleBattleFinishRef = useRef<((result: {
-    score: number;
-    accuracy: number;
-    typedChars: number;
-    missCount: number;
-    myHp: number;
-    opponentHp: number;
-    reason: string;
-  }) => Promise<void>) | null>(null);
+  const handleBattleFinishRef = useRef<
+    | ((result: {
+        score: number;
+        accuracy: number;
+        typedChars: number;
+        missCount: number;
+        myHp: number;
+        opponentHp: number;
+        reason: string;
+      }) => Promise<void>)
+    | null
+  >(null);
   const handleOpponentLeftRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -155,7 +168,9 @@ export default function BattlePage() {
         });
       } catch (err) {
         console.error("Failed to fetch opponent info:", err);
-        handleMatchError("あいての じょうほうしゅとくに しっぱいしました。さいど マッチングします。");
+        handleMatchError(
+          "あいての じょうほうしゅとくに しっぱいしました。さいど マッチングします。",
+        );
       }
     };
 
@@ -167,7 +182,9 @@ export default function BattlePage() {
         setWords(data);
       } catch (err) {
         console.error("Failed to fetch magic words:", err);
-        handleMatchError("たいせんワードの しゅとくに しっぱいしました。さいど マッチングします。");
+        handleMatchError(
+          "たいせんワードの しゅとくに しっぱいしました。さいど マッチングします。",
+        );
       }
     };
 
@@ -231,17 +248,18 @@ export default function BattlePage() {
       setError(message);
     };
 
-    const beginCountdown = (endsAt: number) => {
+    const beginCountdown = () => {
       if (countdownIntervalRef.current) {
         clearInterval(countdownIntervalRef.current);
       }
 
       setStatus("ready");
-      const playingStartsAt = endsAt - BATTLE_TIME_SECONDS * 1000;
+      setCountdown(BATTLE_COUNTDOWN_SECONDS);
 
-      const tickCountdown = () => {
-        const remainingMs = playingStartsAt - Date.now();
-        if (remainingMs <= 0) {
+      let remaining = BATTLE_COUNTDOWN_SECONDS;
+      countdownIntervalRef.current = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
           setCountdown(0);
           setStatus("playing");
           if (countdownIntervalRef.current) {
@@ -250,11 +268,8 @@ export default function BattlePage() {
           }
           return;
         }
-        setCountdown(Math.max(1, Math.ceil(remainingMs / 1000)));
-      };
-
-      tickCountdown();
-      countdownIntervalRef.current = setInterval(tickCountdown, 200);
+        setCountdown(remaining);
+      }, 1000);
     };
 
     const subscribeToBattle = (mId: number) => {
@@ -270,19 +285,23 @@ export default function BattlePage() {
       );
     };
 
-    const handleStartBattle = (data: { matchId?: number; battleEndsAt?: number }) => {
+    const handleStartBattle = (data: {
+      matchId?: number;
+      battleEndsAt?: number;
+    }) => {
       const mId = data.matchId;
       if (mId == null) return;
 
       const endsAt =
         typeof data.battleEndsAt === "number"
           ? data.battleEndsAt
-          : Date.now() + (BATTLE_COUNTDOWN_SECONDS + BATTLE_TIME_SECONDS) * 1000;
+          : Date.now() +
+            (BATTLE_COUNTDOWN_SECONDS + BATTLE_TIME_SECONDS) * 1000;
 
       setMatchId(mId);
       setBattleEndsAt(endsAt);
       subscribeToBattle(mId);
-      beginCountdown(endsAt);
+      beginCountdown();
     };
 
     client.onConnect = () => {
@@ -319,7 +338,9 @@ export default function BattlePage() {
             if (battleEndedRef.current || isSavingRef.current) return;
 
             if (statusRef.current === "found") {
-              resetToSearching("あいてが にげだした！ べつの あいてを さがします。");
+              resetToSearching(
+                "あいてが にげだした！ べつの あいてを さがします。",
+              );
               return;
             }
 
@@ -338,7 +359,9 @@ export default function BattlePage() {
             ) {
               return;
             }
-            resetToSearching("あいてが にげだした！ べつの あいてを さがします。");
+            resetToSearching(
+              "あいてが にげだした！ べつの あいてを さがします。",
+            );
           }
         },
       );
@@ -451,14 +474,34 @@ export default function BattlePage() {
         matchId,
         player1Id: role === "player1" ? currentUser.id : opponent?.id,
         player2Id: role === "player2" ? currentUser.id : opponent?.id,
-        player1Score: role === "player1" ? result.score : (latestOpponent?.score ?? 0),
-        player2Score: role === "player2" ? result.score : (latestOpponent?.score ?? 0),
-        player1AccuracyRate: role === "player1" ? result.accuracy : (latestOpponent?.accuracyRate ?? 0),
-        player2AccuracyRate: role === "player2" ? result.accuracy : (latestOpponent?.accuracyRate ?? 0),
-        player1TypedChars: role === "player1" ? result.typedChars : (latestOpponent?.typedChars ?? 0),
-        player1MissCount: role === "player1" ? result.missCount : (latestOpponent?.missCount ?? 0),
-        player2TypedChars: role === "player2" ? result.typedChars : (latestOpponent?.typedChars ?? 0),
-        player2MissCount: role === "player2" ? result.missCount : (latestOpponent?.missCount ?? 0),
+        player1Score:
+          role === "player1" ? result.score : (latestOpponent?.score ?? 0),
+        player2Score:
+          role === "player2" ? result.score : (latestOpponent?.score ?? 0),
+        player1AccuracyRate:
+          role === "player1"
+            ? result.accuracy
+            : (latestOpponent?.accuracyRate ?? 0),
+        player2AccuracyRate:
+          role === "player2"
+            ? result.accuracy
+            : (latestOpponent?.accuracyRate ?? 0),
+        player1TypedChars:
+          role === "player1"
+            ? result.typedChars
+            : (latestOpponent?.typedChars ?? 0),
+        player1MissCount:
+          role === "player1"
+            ? result.missCount
+            : (latestOpponent?.missCount ?? 0),
+        player2TypedChars:
+          role === "player2"
+            ? result.typedChars
+            : (latestOpponent?.typedChars ?? 0),
+        player2MissCount:
+          role === "player2"
+            ? result.missCount
+            : (latestOpponent?.missCount ?? 0),
         player1Hp: role === "player1" ? result.myHp : undefined,
         player2Hp: role === "player2" ? result.myHp : undefined,
         winnerId,
@@ -482,7 +525,9 @@ export default function BattlePage() {
     } catch (err) {
       console.error("Error submitting result:", err);
       isSavingRef.current = false;
-      setError("けっかの ほぞんに しっぱいしました。サーバーの ログを かくにんしてください。");
+      setError(
+        "けっかの ほぞんに しっぱいしました。サーバーの ログを かくにんしてください。",
+      );
     }
   };
 
@@ -507,13 +552,21 @@ export default function BattlePage() {
           {status === "searching" && (
             <div className="flex flex-col items-center py-16">
               <div className="relative mb-12">
-                <div className={`h-24 w-24 animate-spin rounded-full border-b-4 border-t-4 ${isConnected ? "border-yellow-400" : "border-gray-500"}`}></div>
+                <div
+                  className={`h-24 w-24 animate-spin rounded-full border-b-4 border-t-4 ${isConnected ? "border-yellow-400" : "border-gray-500"}`}
+                ></div>
                 <div className="absolute inset-0 flex items-center justify-center text-4xl">
                   {isConnected ? "⚔️" : "☁️"}
                 </div>
               </div>
               <p className="text-2xl text-white">
-                <TypewriterText text={isConnected ? "対戦相手を さがしています..." : "サーバーに せつぞくちゅう..."} />
+                <TypewriterText
+                  text={
+                    isConnected
+                      ? "対戦相手を さがしています..."
+                      : "サーバーに せつぞくちゅう..."
+                  }
+                />
               </p>
               <div className="mt-12">
                 <BackButton />
@@ -526,12 +579,28 @@ export default function BattlePage() {
               <div className="flex items-center gap-12 mb-12 animate-bounce">
                 <div className="flex flex-col items-center">
                   <UserAvatar user={currentUser} size="lg" />
-                  <p className="mt-2 text-sm text-slate-400">あなた</p>
+                  <p className="mt-2 text-lg font-bold text-white">
+                    {currentUser.name}
+                  </p>
+                  {role && (
+                    <p className="text-xs text-slate-400">
+                      {role === "player1" ? "プレイヤー1" : "プレイヤー2"}
+                    </p>
+                  )}
                 </div>
-                <div className="text-5xl font-black italic text-red-600">VS</div>
+                <div className="text-5xl font-black italic text-red-600">
+                  VS
+                </div>
                 <div className="flex flex-col items-center">
                   <UserAvatar user={opponent} size="lg" />
-                  <p className="mt-2 text-sm text-slate-400">あいて</p>
+                  <p className="mt-2 text-lg font-bold text-white">
+                    {opponent.name}
+                  </p>
+                  {role && (
+                    <p className="text-xs text-slate-400">
+                      {role === "player1" ? "プレイヤー2" : "プレイヤー1"}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -575,19 +644,22 @@ export default function BattlePage() {
             </div>
           )}
 
-          {status === "playing" && matchId && opponent && battleEndsAt !== null && (
-            <BattlePlaying
-              ref={battlePlayingRef}
-              matchId={matchId}
-              currentUser={currentUser}
-              opponent={opponent}
-              words={words}
-              client={stompClient}
-              opponentStatus={opponentStatus}
-              battleEndsAt={battleEndsAt}
-              onFinish={handleBattleFinish}
-            />
-          )}
+          {status === "playing" &&
+            matchId &&
+            opponent &&
+            battleEndsAt !== null && (
+              <BattlePlaying
+                ref={battlePlayingRef}
+                matchId={matchId}
+                currentUser={currentUser}
+                opponent={opponent}
+                words={words}
+                client={stompClient}
+                opponentStatus={opponentStatus}
+                battleEndsAt={battleEndsAt}
+                onFinish={handleBattleFinish}
+              />
+            )}
 
           {status === "finished" && (
             <div className="flex flex-col items-center py-20">
